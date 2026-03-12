@@ -1,7 +1,8 @@
 {
-  "name": "react-example",
+  "name": "snhu-app",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
+  "homepage": "https://snhu.aibry.shop",
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
