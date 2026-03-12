@@ -7,18 +7,36 @@
     
     <title>SNHU COMPASS | AIBRY</title>
     <meta name="description" content="Academic tracking and sync for SNHU modules." />
-    <link rel="manifest" href="/manifest.json" />
+    
+    <link rel="manifest" href="/site.webmanifest" />
+    
     <meta name="theme-color" content="#020617" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <link rel="apple-touch-icon" href="/logo192.png" />
+    
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&display=swap" rel="stylesheet" />
+
+    <script>
+      // Detection script for the standalone AIBRY dashboard experience
+      (function() {
+        const isStandalone = window.matchMedia('(display-mode: standalone)').matches 
+          || window.navigator.standalone 
+          || document.referrer.includes('android-app://');
+        
+        if (isStandalone) {
+          document.documentElement.classList.add('pwa-mode');
+        }
+      })();
+    </script>
   </head>
   <body class="bg-slate-950 antialiased selection:bg-blue-500/30">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
-</html>
+</html>>
