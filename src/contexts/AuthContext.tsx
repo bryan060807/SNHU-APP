@@ -1,82 +1,77 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { supabase } from '../lib/supabase'; // Ensure this path is correct
+import { Session, User as SupabaseUser } from '@supabase/supabase-js';
 
-interface User {
+// Merged your custom User fields with Supabase's base User
+interface UserProfile {
   id: string;
-  email: string;
-  name: string;
+  email?: string;
+  full_name?: string;
   theme: 'light' | 'dark';
-  ai_personalization?: string;
-  ai_knowledge_base?: string;
-  ai_memory?: string;
-  ai_voice?: string;
-  wellness_enabled?: boolean;
   birthday?: string;
+  wellness_enabled?: boolean;
 }
 
 interface AuthContextType {
-  user: User | null;
-  token: string | null;
-  login: (token: string, user: User) => void;
-  logout: () => void;
-  updateUser: (user: Partial<User>) => void;
+  user: UserProfile | null;
+  session: Session | null;
+  signOut: () => Promise<void>;
+  updateUser: (updates: Partial<UserProfile>) => void;
   isLoading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(localStorage.getItem('snhu_token'));
+  const [user, setUser] = useState<UserProfile | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const fetchMe = async () => {
-      if (!token) {
-        setIsLoading(false);
-        return;
+    // 1. Check active sessions on load
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      if (session?.user) fetchProfile(session.user.id);
+      setIsLoading(false);
+    });
+
+    // 2. Listen for auth changes (login, logout, token refresh)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      if (session?.user) {
+        fetchProfile(session.user.id);
+      } else {
+        setUser(null);
       }
+      setIsLoading(false);
+    });
 
-      try {
-        const response = await fetch('/api/auth/me', {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+    return () => subscription.unsubscribe();
+  }, []);
 
-        if (response.ok) {
-          const userData = await response.json();
-          setUser(userData);
-        } else {
-          logout();
-        }
-      } catch (error) {
-        console.error('Failed to fetch user:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  // Fetches the custom data (like birthday) from your public.profiles table
+  const fetchProfile = async (userId: string) => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single();
 
-    fetchMe();
-  }, [token]);
-
-  const login = (newToken: string, newUser: User) => {
-    setToken(newToken);
-    setUser(newUser);
-    localStorage.setItem('snhu_token', newToken);
-  };
-
-  const logout = () => {
-    setToken(null);
-    setUser(null);
-    localStorage.removeItem('snhu_token');
-  };
-
-  const updateUser = (updatedUser: Partial<User>) => {
-    if (user) {
-      setUser({ ...user, ...updatedUser });
+    if (!error && data) {
+      setUser(data as UserProfile);
     }
   };
 
+  const signOut = async () => {
+    await supabase.auth.signOut();
+  };
+
+  const updateUser = (updates: Partial<UserProfile>) => {
+    if (user) setUser({ ...user, ...updates });
+  };
+
   return (
-    <AuthContext.Provider value={{ user, token, login, logout, updateUser, isLoading }}>
+    <AuthContext.Provider value={{ user, session, signOut, updateUser, isLoading }}>
       {children}
     </AuthContext.Provider>
   );

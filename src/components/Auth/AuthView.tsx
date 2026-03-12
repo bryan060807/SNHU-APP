@@ -1,5 +1,10 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 import React, { useState } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
+import { supabase } from '../../lib/supabase'; // Updated to use Supabase SDK
 import { GraduationCap, Mail, Lock, User, ArrowRight, Loader2 } from 'lucide-react';
 import { useToast } from '../Toast';
 
@@ -9,33 +14,41 @@ export function AuthView() {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { login } = useAuth();
   const { showToast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
-    const endpoint = isLogin ? '/api/auth/login' : '/api/auth/register';
-    const body = isLogin ? { email, password } : { email, password, name };
-
     try {
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
+      if (isLogin) {
+        // Direct Supabase Sign In
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
 
-      const data = await response.json();
-
-      if (response.ok) {
-        login(data.token, data.user);
-        showToast('Welcome!', `Successfully ${isLogin ? 'logged in' : 'registered'}.`, 'success');
+        if (error) throw error;
+        showToast('Welcome Back', 'Successfully signed in to SNHU Compass.', 'success');
       } else {
-        showToast('Error', data.error || 'Something went wrong', 'error');
+        // Direct Supabase Sign Up
+        const { error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              full_name: name, // Maps to the profile table metadata
+            },
+            // Note: This defaults to requiring email confirmation
+            emailRedirectTo: window.location.origin,
+          },
+        });
+
+        if (error) throw error;
+        showToast('Account Created', 'Check your email for the confirmation link!', 'success');
       }
-    } catch (error) {
-      showToast('Error', 'Failed to connect to server', 'error');
+    } catch (error: any) {
+      showToast('Authentication Error', error.message || 'Something went wrong', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -65,7 +78,7 @@ export function AuthView() {
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     className="w-full pl-12 pr-4 py-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium dark:text-white"
-                    placeholder="John Doe"
+                    placeholder="Bryan Miller"
                   />
                 </div>
               </div>
