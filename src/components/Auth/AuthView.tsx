@@ -4,10 +4,10 @@
  */
 
 import React, { useState } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase } from '../../lib/supabase'; // Path fixed for /src/components/Auth/
 import { GraduationCap, Mail, Lock, User, ArrowRight, Loader2, Database } from 'lucide-react';
-import { useToast } from './Toast';
-import { cn } from '../lib/utils';
+import { useToast } from '../Toast'; // Path fixed for /src/components/Auth/
+import { cn } from '../../lib/utils'; // Path fixed for /src/components/Auth/
 
 export function AuthView() {
   const [isLogin, setIsLogin] = useState(true);
@@ -19,16 +19,20 @@ export function AuthView() {
 
   const handleGoogleLogin = async () => {
     try {
+      // Force production redirect for Vercel stability
+      const redirectURL = window.location.origin.includes('localhost') 
+        ? window.location.origin 
+        : 'https://snhu.aibry.shop';
+
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          // Requests the necessary scopes for your Integrations Hub
           scopes: 'https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/tasks.readonly',
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',
           },
-          redirectTo: window.location.origin,
+          redirectTo: redirectURL,
         },
       });
       if (error) throw error;
