@@ -17,7 +17,6 @@ import { Settings } from './components/Settings';
 import { IntegrationsHub } from './components/IntegrationsHub';
 import { AuthView } from './components/Auth/AuthView';
 import { Course, Assignment, View } from './types';
-import { requestNotificationPermission, sendNotification } from './lib/notifications';
 import { useToast } from './components/Toast';
 import { useAuth } from './contexts/AuthContext';
 
@@ -29,12 +28,20 @@ export default function App() {
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [dataLoading, setDataLoading] = useState(false);
 
-  // Apply theme from the user's public profile (AIBRY Aesthetic)
+  /**
+   * THEME SYNC: Captures the profile theme and locks it into 
+   * localStorage for the index.html flash-prevention script.
+   */
   useEffect(() => {
-    if (profile?.theme === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
+    if (profile?.theme) {
+      const theme = profile.theme;
+      localStorage.setItem('theme', theme);
+      
+      if (theme === 'dark') {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
     }
   }, [profile?.theme]);
 
@@ -46,14 +53,16 @@ export default function App() {
         const birthMonth = parseInt(parts[1], 10);
         const birthDay = parseInt(parts[2], 10);
         const today = new Date();
+        
+        // Celebration trigger for Bryan's birthday (or any user)
         if ((today.getMonth() + 1) === birthMonth && today.getDate() === birthDay) {
           confetti({
             particleCount: 150,
             spread: 70,
             origin: { y: 0.6 },
-            colors: ['#003057', '#3b82f6', '#ffffff']
+            colors: ['#2563eb', '#1d4ed8', '#ffffff'] // AIBRY Industrial Blue palette
           });
-          showToast(`Happy Birthday!`, "Time to celebrate while you crush those modules.", 'success');
+          showToast(`Happy Birthday!`, "Initialization complete. Time to dominate the term.", 'success');
         }
       }
     }
@@ -88,7 +97,7 @@ export default function App() {
       }
     } catch (error: any) {
       console.error('Database Sync Error:', error.message);
-      showToast('Sync Error', 'Academic compass hit a snag. Check your database tables.', 'error');
+      showToast('Sync Error', 'Academic data stream interrupted.', 'error');
     } finally {
       setDataLoading(false);
     }
@@ -97,6 +106,7 @@ export default function App() {
   useEffect(() => {
     fetchData();
 
+    // Real-time Postgres subscription for the Neural Link
     const channel = supabase.channel('schema-db-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'assignments' }, fetchData)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'courses' }, fetchData)
@@ -120,7 +130,7 @@ export default function App() {
         estimated_hours: assignment.estimatedHours
       }]);
 
-    if (error) showToast('Error', 'Could not save assignment.', 'error');
+    if (error) showToast('Error', 'Insertion failed.', 'error');
     else fetchData();
   };
 
@@ -129,7 +139,7 @@ export default function App() {
       .update({ status, completed_at: status === 'completed' ? new Date().toISOString() : null })
       .eq('id', id);
     
-    if (error) showToast('Error', 'Update failed.', 'error');
+    if (error) showToast('Error', 'Handshake failed.', 'error');
     else fetchData();
   };
 
@@ -144,36 +154,38 @@ export default function App() {
       })
       .eq('id', a.id);
 
-    if (error) showToast('Error', 'Update failed.', 'error');
+    if (error) showToast('Error', 'Override failed.', 'error');
     else fetchData();
   };
 
   const deleteAssignment = async (id: string) => {
     const { error } = await supabase.from('assignments').delete().eq('id', id);
     if (!error) {
-      showToast('Deleted', 'Assignment removed.', 'success');
+      showToast('Deleted', 'Assignment purged from system.', 'success');
       fetchData();
     }
   };
 
   if (authLoading) {
     return (
-      <div className="h-screen flex items-center justify-center bg-[#F8F9FA] dark:bg-slate-950">
+      <div className="h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
-          <p className="text-slate-500 font-bold animate-pulse uppercase tracking-tighter">Authenticating...</p>
+          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-2xl animate-spin" />
+          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-blue-600 animate-pulse">Initializing Mainframe...</p>
         </div>
       </div>
     );
   }
 
+  // Redirect to Authentication if no active user session
   if (!user) return <AuthView />;
 
   return (
-    <div className="flex flex-col lg:flex-row h-screen bg-[#F8F9FA] dark:bg-slate-950 text-slate-900 dark:text-white transition-colors duration-300">
+    <div className="flex flex-col lg:flex-row h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white transition-colors duration-300">
       <Sidebar currentView={currentView} setView={setCurrentView} />
+      
       <main className="flex-1 overflow-y-auto p-4 md:p-8 pb-24 lg:pb-8">
-        <div className="max-w-5xl mx-auto">
+        <div className="max-w-6xl mx-auto">
           {currentView === 'dashboard' && (
             <Dashboard courses={courses} assignments={assignments} updateStatus={updateAssignmentStatus} setView={setCurrentView} />
           )}

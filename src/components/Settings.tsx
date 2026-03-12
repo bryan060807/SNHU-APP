@@ -8,7 +8,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { 
   User, Moon, Sun, Brain, Database, Save, LogOut, 
-  Shield, Loader2, HeartPulse, Calendar, Layout, HardDrive 
+  Loader2, Calendar, Layout, HardDrive 
 } from 'lucide-react';
 import { useToast } from './Toast';
 import { cn } from '../lib/utils';
@@ -59,29 +59,32 @@ export function Settings() {
 
   useEffect(() => {
     const checkGoogleStatus = async () => {
-      const { data: { user: sbUser } } = await supabase.auth.getUser();
-      const isConnected = sbUser?.app_metadata?.providers?.includes('google') || false;
-      setIsGoogleConnected(isConnected);
+      const { data: { session } } = await supabase.auth.getSession();
+      const providers = session?.user?.app_metadata?.providers || [];
+      setIsGoogleConnected(providers.includes('google'));
     };
     checkGoogleStatus();
-  }, []);
+  }, [user]);
 
   const handleConnectGoogle = async () => {
     try {
+      showToast('Redirecting', 'Initializing Google Neural Link...', 'info');
+      
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
+          // SCOPES: Space-separated string including Drive metadata
+          scopes: 'openid email profile https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/tasks.readonly https://www.googleapis.com/auth/drive.metadata.readonly',
           queryParams: { 
             access_type: 'offline', 
-            prompt: 'consent',
-            scope: 'https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/tasks https://www.googleapis.com/auth/drive.readonly'
+            prompt: 'consent' // Ensures permission checkboxes appear
           },
           redirectTo: window.location.origin
         }
       });
       if (error) throw error;
-    } catch (error) {
-      showToast('Error', 'Failed to initiate Google connection', 'error');
+    } catch (error: any) {
+      showToast('Link Error', error.message || 'Failed to initiate Google connection', 'error');
     }
   };
 
@@ -107,6 +110,14 @@ export function Settings() {
 
       if (error) throw error;
 
+      // THEME PERSISTENCE: Save to localStorage for the index.html boot script
+      localStorage.setItem('theme', theme);
+      if (theme === 'dark') {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+
       updateUser({ 
         full_name: name, 
         theme, 
@@ -119,9 +130,6 @@ export function Settings() {
       });
 
       showToast('Success', 'Settings synced and encrypted', 'success');
-      
-      if (theme === 'dark') document.documentElement.classList.add('dark');
-      else document.documentElement.classList.remove('dark');
       
     } catch (error: any) {
       showToast('Error', error.message || 'Failed to update settings', 'error');
@@ -232,7 +240,7 @@ export function Settings() {
           <section className="bg-white dark:bg-slate-900 p-8 rounded-[3rem] border-2 border-slate-100 dark:border-slate-800 shadow-xl space-y-6">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase italic">Google Link</h3>
-              <div className={cn("w-3 h-3 rounded-full", isGoogleConnected ? "bg-emerald-500 animate-pulse" : "bg-slate-300")} />
+              <div className={cn("w-3 h-3 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.5)]", isGoogleConnected ? "bg-emerald-500 animate-pulse" : "bg-slate-300")} />
             </div>
 
             {isGoogleConnected ? (
@@ -240,11 +248,17 @@ export function Settings() {
                 <IntegrationToggle icon={<Calendar size={18}/>} label="Calendar Sync" active={syncCalendar} onChange={setSyncCalendar} />
                 <IntegrationToggle icon={<Layout size={18}/>} label="Task Sync" active={syncTasks} onChange={setSyncTasks} />
                 <IntegrationToggle icon={<HardDrive size={18}/>} label="Drive Access" active={syncDrive} onChange={setSyncDrive} />
+                <button 
+                  onClick={handleConnectGoogle}
+                  className="w-full py-3 text-[10px] font-black uppercase text-slate-400 hover:text-blue-500 transition-colors"
+                >
+                  Refresh Permissions
+                </button>
               </div>
             ) : (
               <button 
                 onClick={handleConnectGoogle}
-                className="w-full py-4 bg-slate-100 dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 rounded-2xl font-black uppercase text-xs flex items-center justify-center gap-3 hover:border-blue-500 transition-all"
+                className="w-full py-4 bg-slate-100 dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 rounded-2xl font-black uppercase text-xs flex items-center justify-center gap-3 hover:border-blue-500 transition-all shadow-sm"
               >
                 <Database size={18} className="text-blue-500" />
                 Authorize Google
@@ -301,11 +315,11 @@ function IntegrationToggle({ icon, label, active, onChange }: { icon: any, label
         onClick={() => onChange(!active)}
         className={cn(
           "w-10 h-6 rounded-full transition-all relative",
-          active ? "bg-blue-600" : "bg-slate-300 dark:bg-slate-700"
+          active ? "bg-blue-600 shadow-[0_0_8px_rgba(37,99,235,0.4)]" : "bg-slate-300 dark:bg-slate-700"
         )}
       >
         <div className={cn(
-          "absolute top-1 w-4 h-4 bg-white rounded-full transition-all",
+          "absolute top-1 w-4 h-4 bg-white rounded-full transition-all shadow-sm",
           active ? "left-5" : "left-1"
         )} />
       </button>

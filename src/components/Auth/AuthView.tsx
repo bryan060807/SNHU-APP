@@ -4,10 +4,10 @@
  */
 
 import React, { useState } from 'react';
-import { supabase } from '../../lib/supabase'; // Path fixed for /src/components/Auth/
+import { supabase } from '../../lib/supabase'; // Corrected path for /src/components/Auth/
 import { GraduationCap, Mail, Lock, User, ArrowRight, Loader2, Database } from 'lucide-react';
-import { useToast } from '../Toast'; // Path fixed for /src/components/Auth/
-import { cn } from '../../lib/utils'; // Path fixed for /src/components/Auth/
+import { useToast } from '../Toast'; 
+import { cn } from '../../lib/utils'; 
 
 export function AuthView() {
   const [isLogin, setIsLogin] = useState(true);
@@ -19,7 +19,7 @@ export function AuthView() {
 
   const handleGoogleLogin = async () => {
     try {
-      // Force production redirect for Vercel stability
+      // Clean redirect for production stability
       const redirectURL = window.location.origin.includes('localhost') 
         ? window.location.origin 
         : 'https://snhu.aibry.shop';
@@ -27,10 +27,11 @@ export function AuthView() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          scopes: 'https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/tasks.readonly',
+          // SCOPES: Optimized for Google Calendar, Tasks, and Drive Metadata
+          scopes: 'openid email profile https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/tasks.readonly https://www.googleapis.com/auth/drive.metadata.readonly',
           queryParams: {
             access_type: 'offline',
-            prompt: 'consent',
+            prompt: 'consent', // FORCES checkboxes for Calendar/Tasks to appear
           },
           redirectTo: redirectURL,
         },
