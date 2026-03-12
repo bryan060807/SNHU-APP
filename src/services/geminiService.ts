@@ -3,37 +3,40 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { GoogleGenAI, Type, Modality } from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
 
-// 1. Vite/Vercel Environment Variable Access
-// NOTE: Must be named VITE_GEMINI_API_KEY in your Vercel Settings
-const VITE_KEY = import.meta.env.VITE_GEMINI_API_KEY;
-
-// 2. Safe initialization to prevent "Uncaught Error" on script load
-const genAI = (typeof VITE_KEY === 'string' && VITE_KEY.length > 10) 
-  ? new GoogleGenAI(VITE_KEY) 
-  : null;
+// 1. We keep a local reference but DO NOT initialize yet.
+// This prevents the SDK from throwing "API Key must be set" on the initial page load.
+let genAIInstance: GoogleGenAI | null = null;
 
 /**
- * Internal helper to safely get the model. 
- * If the key is missing, it logs a clear error instead of crashing the UI.
+ * Lazy Initialization Helper
+ * Ensures the SDK is only instantiated when a user actually triggers an AI action.
  */
-const getSafeModel = (modelName: string = "gemini-1.5-flash") => {
-  if (!genAI) {
-    console.warn("SNHU Compass AI: VITE_GEMINI_API_KEY is missing or invalid. Check Vercel Environment Variables.");
+const getSDK = () => {
+  if (genAIInstance) return genAIInstance;
+
+  const VITE_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+
+  if (!VITE_KEY || VITE_KEY.length < 10) {
+    console.warn("AI System: VITE_GEMINI_API_KEY is missing. AI features are offline.");
     return null;
   }
-  return genAI.getGenerativeModel({ model: modelName });
+
+  // Only now do we touch the Google SDK
+  genAIInstance = new GoogleGenAI(VITE_KEY);
+  return genAIInstance;
 };
 
 /**
  * AI-powered title improvement for the AssignmentList
  */
 export async function improveAssignmentTitle(title: string): Promise<string> {
-  const model = getSafeModel();
-  if (!model) return title;
+  const sdk = getSDK();
+  if (!sdk) return title;
 
   try {
+    const model = sdk.getGenerativeModel({ model: "gemini-1.5-flash" });
     const result = await model.generateContent(
       `Rephrase this SNHU assignment title to be professional and concise: "${title}". Return ONLY the new title text.`
     );
@@ -46,29 +49,29 @@ export async function improveAssignmentTitle(title: string): Promise<string> {
 
 /**
  * Parses Syllabus text from PDFs/HTML into SNHU-formatted JSON
- * Handles the 8-week module structure and Monday term starts.
  */
 export async function parseSyllabus(text: string, startDate?: string) {
-  const model = getSafeModel();
-  if (!model) throw new Error("AI Service not configured.");
-
-  const prompt = `Extract course information and assignments from this SNHU syllabus text:
-  
-  ${text}
-  
-  ${startDate ? `IMPORTANT: The term starts on ${startDate}. Use this as the base (Module 1 start date) to calculate all due dates.` : ""}
-  
-  Return a JSON object strictly following this schema:
-  - courseCode (e.g., IT-140)
-  - courseName (e.g., Introduction to Scripting)
-  - termStartDate (YYYY-MM-DD)
-  - assignments (Array with: title, dueDate (ISO string), type (discussion, assignment, quiz, project), estimatedHours).
-  
-  Note: SNHU terms are 8 weeks. Module 1 starts on the termStartDate. 
-  Initial posts are due Thursdays 11:59 PM. Responses/Assignments are due Sundays 11:59 PM.
-  Assume year 2026 if not specified.`;
+  const sdk = getSDK();
+  if (!sdk) throw new Error("AI Service not configured.");
 
   try {
+    const model = sdk.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const prompt = `Extract course information and assignments from this SNHU syllabus text:
+    
+    ${text}
+    
+    ${startDate ? `IMPORTANT: The term starts on ${startDate}. Use this as the base (Module 1 start date) to calculate all due dates.` : ""}
+    
+    Return a JSON object strictly following this schema:
+    - courseCode (e.g., IT-140)
+    - courseName (e.g., Introduction to Scripting)
+    - termStartDate (YYYY-MM-DD)
+    - assignments (Array with: title, dueDate (ISO string), type (discussion, assignment, quiz, project), estimatedHours).
+    
+    Note: SNHU terms are 8 weeks. Module 1 starts on the termStartDate. 
+    Initial posts are due Thursdays 11:59 PM. Responses/Assignments are due Sundays 11:59 PM.
+    Assume year 2026 if not specified.`;
+
     const result = await model.generateContent({
       contents: [{ role: "user", parts: [{ text: prompt }] }],
       generationConfig: {
@@ -87,26 +90,25 @@ export async function parseSyllabus(text: string, startDate?: string) {
  * Chat logic for the SNHU Academic Compass AI Buddy
  */
 export async function getStudyAdvice(prompt: string, history: { role: 'user' | 'assistant', content: string }[] = []) {
-  const model = getSafeModel();
-  if (!model) return { text: "AI Buddy is currently offline. Please configure your API key.", functionCalls: undefined };
-
-  const systemInstruction = `You are the SNHU Academic Compass AI, a specialized study mentor.
-  Context:
-  - SNHU follows an 8-week term structure.
-  - Thursday 11:59 PM: Discussion Initial Posts.
-  - Sunday 11:59 PM: Responses & Assignments.
-  - Use the 7-3-1 rule (7 hours of study per credit).
-  
-  Format: Use Markdown. Be encouraging and focus on resilience and mental health.`;
-
-  const contents = history.map(m => ({
-    role: m.role === 'assistant' ? 'model' : 'user',
-    parts: [{ text: m.content }]
-  }));
-
-  contents.push({ role: 'user', parts: [{ text: prompt }] });
+  const sdk = getSDK();
+  if (!sdk) return { text: "AI Buddy is currently offline. Please configure your API key.", functionCalls: undefined };
 
   try {
+    const model = sdk.getGenerativeModel({ model: "gemini-1.5-flash" });
+    
+    // The instructions now come via the prompt injection in AIChat.tsx 
+    // to include the Long-Term Memory and Persona settings.
+    const systemInstruction = `You are the SNHU Academic Compass AI. 
+    SNHU Rules: Thu 11:59 PM (Initial Post), Sun 11:59 PM (Assignments). 
+    Tone: Industrial, focused, supportive. No fluff. Use technical language when appropriate.`;
+
+    const contents = history.map(m => ({
+      role: m.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: m.content }]
+    }));
+
+    contents.push({ role: 'user', parts: [{ text: prompt }] });
+
     const result = await model.generateContent({
       contents,
       systemInstruction,
@@ -119,7 +121,7 @@ export async function getStudyAdvice(prompt: string, history: { role: 'user' | '
   } catch (error) {
     console.error("Gemini Chat Error:", error);
     return {
-      text: "I'm having trouble connecting to my academic database right now.",
+      text: "Neural link interrupted. Check your system configuration.",
       functionCalls: undefined
     };
   }
@@ -129,10 +131,11 @@ export async function getStudyAdvice(prompt: string, history: { role: 'user' | '
  * Generates speech for 'Talk Mode' using Gemini TTS
  */
 export async function generateSpeech(text: string, voiceName: string = 'Kore') {
-  const model = getSafeModel("gemini-1.5-flash"); // TTS usually requires flash models
-  if (!model) return null;
+  const sdk = getSDK();
+  if (!sdk) return null;
 
   try {
+    const model = sdk.getGenerativeModel({ model: "gemini-1.5-flash" }); 
     const result = await model.generateContent({
       contents: [{ parts: [{ text }] }],
       generationConfig: {
