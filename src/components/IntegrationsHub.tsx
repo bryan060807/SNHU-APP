@@ -20,7 +20,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useToast } from './Toast';
 import { cn } from '../lib/utils';
 import { supabase } from '../lib/supabase';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion } from 'motion/react';
 
 export function IntegrationsHub() {
   const { user } = useAuth();
@@ -30,9 +30,17 @@ export function IntegrationsHub() {
   const [tasks, setTasks] = useState<any[]>([]);
   const [driveFiles, setDriveFiles] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isConnected, setIsConnected] = useState(false);
 
-  // Check connection based on Supabase provider metadata
-  const isConnected = !!user?.email?.includes('@gmail.com');
+  // Core Connection Check: Verifies the OAuth provider is active in the current session
+  useEffect(() => {
+    const checkConnection = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const providers = session?.user?.app_metadata?.providers || [];
+      setIsConnected(providers.includes('google'));
+    };
+    checkConnection();
+  }, [user]);
 
   const fetchAllData = async () => {
     if (!isConnected) return;
@@ -41,12 +49,19 @@ export function IntegrationsHub() {
     try {
       // 1. Invoke the Edge Function for Calendar
       const { data: calData, error: calError } = await supabase.functions.invoke('google-calendar');
-      if (calError) console.warn("Calendar Sync Failed:", calError);
-      else setCalendarEvents(calData || []);
+      
+      if (calError) {
+        console.warn("Calendar Sync Failed:", calError);
+        // If the error is 401, the token might be expired
+        if (calError.status === 401) {
+          showToast('Session Expired', 'Please re-authorize Google in Settings.', 'error');
+        }
+      } else {
+        setCalendarEvents(calData || []);
+      }
 
-      // 2. Invoke placeholders for Tasks/Drive (assuming future edge functions)
+      // 2. Future expansion for Tasks/Drive
       // const { data: taskData } = await supabase.functions.invoke('google-tasks');
-      // const { data: driveData } = await supabase.functions.invoke('google-drive');
       
     } catch (error) {
       console.error('Integration Sync Error:', error);
@@ -57,7 +72,9 @@ export function IntegrationsHub() {
   };
 
   useEffect(() => {
-    fetchAllData();
+    if (isConnected) {
+      fetchAllData();
+    }
   }, [isConnected]);
 
   return (
@@ -117,7 +134,7 @@ export function IntegrationsHub() {
             
             <div className="space-y-3 flex-1 overflow-y-auto max-h-[300px] min-h-[200px]">
               {isLoading ? (
-                <div className="h-full flex items-center justify-center"><Loader2 className="animate-spin text-blue-500" /></div>
+                <div className="h-full flex items-center justify-center py-10"><Loader2 className="animate-spin text-blue-500" /></div>
               ) : calendarEvents.length > 0 ? (
                 calendarEvents.map((event) => (
                   <div key={event.id} className="p-4 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-100 dark:border-slate-800 group">
