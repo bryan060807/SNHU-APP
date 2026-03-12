@@ -16,7 +16,7 @@ import {
   BookOpen,
   Layout
 } from 'lucide-react';
-import { format, isBefore, addDays, isWithinInterval } from 'date-fns';
+import { format, isBefore, addDays } from 'date-fns';
 import { cn } from '../lib/utils';
 import { motion } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
@@ -220,7 +220,7 @@ export function Dashboard({ courses, assignments, updateStatus, setView }: Dashb
             </div>
           </section>
 
-          {/* SNHU Quick Tips (Static context based on AIBRY project) */}
+          {/* SNHU Quick Tips */}
           <div className="bg-blue-50 dark:bg-blue-900/20 p-6 rounded-3xl border border-blue-100 dark:border-blue-900/30">
             <h4 className="text-xs font-bold text-blue-900 dark:text-blue-300 uppercase tracking-widest mb-2 flex items-center gap-2">
               <Zap size={14} /> SNHU Pro-Tip
