@@ -1,0 +1,5 @@
+{
+  "name": "SNHU Academic Compass",
+  "description": "A specialized time management and academic planning tool for SNHU students, featuring assignment tracking, study timers, and an AI academic assistant.",
+  "requestFramePermissions": ["notifications", "microphone"]
+}
