@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import confetti from 'canvas-confetti';
 import { supabase } from './lib/supabase';
 import { Sidebar } from './components/Sidebar';
@@ -41,65 +41,75 @@ export default function App() {
   // Personalized Birthday Celebration: June 13th Logic
   useEffect(() => {
     if (profile?.birthday) {
-      const [, birthMonth, birthDay] = profile.birthday.split('-').map(Number);
-      const today = new Date();
-      if ((today.getMonth() + 1) === birthMonth && today.getDate() === birthDay) {
-        confetti({
-          particleCount: 150,
-          spread: 70,
-          origin: { y: 0.6 },
-          colors: ['#003057', '#3b82f6', '#ffffff']
-        });
-        showToast(`Happy Birthday!`, "Time to celebrate while you crush those modules.", 'success');
+      const parts = profile.birthday.split('-');
+      if (parts.length === 3) {
+        const birthMonth = parseInt(parts[1], 10);
+        const birthDay = parseInt(parts[2], 10);
+        const today = new Date();
+        if ((today.getMonth() + 1) === birthMonth && today.getDate() === birthDay) {
+          confetti({
+            particleCount: 150,
+            spread: 70,
+            origin: { y: 0.6 },
+            colors: ['#003057', '#3b82f6', '#ffffff']
+          });
+          showToast(`Happy Birthday!`, "Time to celebrate while you crush those modules.", 'success');
+        }
       }
     }
-  }, [profile]);
+  }, [profile, showToast]);
 
-  // Fetch data from Supabase
-  useEffect(() => {
+  // Fetch data from Supabase with Safe-Fetch fallbacks
+  const fetchData = useCallback(async () => {
     if (!user) return;
+    setDataLoading(true);
+    try {
+      const [coursesRes, assignmentsRes] = await Promise.all([
+        supabase.from('courses').select('*'),
+        supabase.from('assignments').select('*').order('due_date', { ascending: true })
+      ]);
 
-    const fetchData = async () => {
-      setDataLoading(true);
-      try {
-        const [coursesRes, assignmentsRes] = await Promise.all([
-          supabase.from('courses').select('*'),
-          supabase.from('assignments').select('*').order('due_date', { ascending: true })
-        ]);
+      if (coursesRes.error) throw coursesRes.error;
+      if (assignmentsRes.error) throw assignmentsRes.error;
 
-        if (coursesRes.data) setCourses(coursesRes.data);
-        if (assignmentsRes.data) {
-          setAssignments(assignmentsRes.data.map((a: any) => ({
-            id: a.id,
-            courseId: a.course_id,
-            title: a.title,
-            dueDate: a.due_date,
-            type: a.type,
-            status: a.status,
-            estimatedHours: a.estimated_hours,
-            completedAt: a.completed_at
-          })));
-        }
-      } catch (error) {
-        showToast('Sync Error', 'Failed to retrieve academic data.', 'error');
-      } finally {
-        setDataLoading(false);
+      setCourses(coursesRes.data || []);
+      
+      if (assignmentsRes.data) {
+        setAssignments(assignmentsRes.data.map((a: any) => ({
+          id: a.id,
+          courseId: a.course_id,
+          title: a.title || 'Untitled Assignment',
+          dueDate: a.due_date || new Date().toISOString(),
+          type: a.type || 'assignment',
+          status: a.status || 'todo',
+          estimatedHours: a.estimated_hours || 0,
+          completedAt: a.completed_at
+        })));
       }
-    };
+    } catch (error: any) {
+      console.error('Database Sync Error:', error.message);
+      showToast('Sync Error', 'Academic compass hit a snag. Check your database tables.', 'error');
+    } finally {
+      setDataLoading(false);
+    }
+  }, [user, showToast]);
 
+  useEffect(() => {
     fetchData();
 
-    // Real-time subscription for instant updates across devices
     const channel = supabase.channel('schema-db-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'assignments' }, fetchData)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'courses' }, fetchData)
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
-  }, [user]);
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [fetchData]);
 
   // Mutation Handlers
   const addAssignment = async (assignment: Omit<Assignment, 'id'>) => {
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('assignments')
       .insert([{
         course_id: assignment.courseId,
@@ -108,32 +118,50 @@ export default function App() {
         type: assignment.type,
         status: 'todo',
         estimated_hours: assignment.estimatedHours
-      }])
-      .select();
+      }]);
 
     if (error) showToast('Error', 'Could not save assignment.', 'error');
+    else fetchData();
   };
 
   const updateAssignmentStatus = async (id: string, status: Assignment['status']) => {
-    await supabase.from('assignments')
+    const { error } = await supabase.from('assignments')
       .update({ status, completed_at: status === 'completed' ? new Date().toISOString() : null })
       .eq('id', id);
+    
+    if (error) showToast('Error', 'Update failed.', 'error');
+    else fetchData();
+  };
+
+  const updateAssignment = async (a: Assignment) => {
+    const { error } = await supabase.from('assignments')
+      .update({
+        title: a.title,
+        course_id: a.courseId,
+        due_date: a.dueDate,
+        type: a.type,
+        estimated_hours: a.estimatedHours
+      })
+      .eq('id', a.id);
+
+    if (error) showToast('Error', 'Update failed.', 'error');
+    else fetchData();
   };
 
   const deleteAssignment = async (id: string) => {
     const { error } = await supabase.from('assignments').delete().eq('id', id);
     if (!error) {
-      setAssignments(assignments.filter(a => a.id !== id));
       showToast('Deleted', 'Assignment removed.', 'success');
+      fetchData();
     }
   };
 
-  if (authLoading || dataLoading) {
+  if (authLoading) {
     return (
       <div className="h-screen flex items-center justify-center bg-[#F8F9FA] dark:bg-slate-950">
         <div className="flex flex-col items-center gap-4">
           <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
-          <p className="text-slate-500 font-bold animate-pulse uppercase tracking-tighter">Syncing AIBRY Compass...</p>
+          <p className="text-slate-500 font-bold animate-pulse uppercase tracking-tighter">Authenticating...</p>
         </div>
       </div>
     );
@@ -156,14 +184,15 @@ export default function App() {
               addAssignment={addAssignment} 
               updateStatus={updateAssignmentStatus} 
               deleteAssignment={deleteAssignment} 
+              updateAssignment={updateAssignment}
             />
           )}
           {currentView === 'courses' && (
             <CourseList 
               courses={courses} 
-              addCourse={async (c) => { await supabase.from('courses').insert([c]); }} 
-              deleteCourse={(id) => supabase.from('courses').delete().eq('id', id)} 
-              bulkAddAssignments={async (a) => { await supabase.from('assignments').insert(a); }}
+              addCourse={async (c) => { await supabase.from('courses').insert([c]); fetchData(); }} 
+              deleteCourse={async (id) => { await supabase.from('courses').delete().eq('id', id); fetchData(); }} 
+              bulkAddAssignments={async (a) => { await supabase.from('assignments').insert(a); fetchData(); }}
             />
           )}
           {currentView === 'timer' && <StudyTimer courses={courses} />}
