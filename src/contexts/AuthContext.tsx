@@ -1,8 +1,12 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase'; // Ensure this path is correct
-import { Session, User as SupabaseUser } from '@supabase/supabase-js';
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
 
-// Merged your custom User fields with Supabase's base User
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { supabase } from '../lib/supabase';
+import { Session } from '@supabase/supabase-js';
+
 interface UserProfile {
   id: string;
   email?: string;
@@ -27,43 +31,64 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Fetches the custom data from your public.profiles table
+  const fetchProfile = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (error) {
+        // If profile doesn't exist yet (first time login), create a minimal user object
+        // so the app doesn't stay on a blank screen
+        const { data: { user: sbUser } } = await supabase.auth.getUser();
+        setUser({
+          id: userId,
+          email: sbUser?.email,
+          theme: 'dark',
+          full_name: sbUser?.user_metadata?.full_name || 'Student'
+        });
+      } else if (data) {
+        setUser(data as UserProfile);
+      }
+    } catch (err) {
+      console.error("Profile fetch error:", err);
+    } finally {
+      setIsLoading(false); // Move this here so it only stops loading AFTER fetch attempt
+    }
+  };
+
   useEffect(() => {
     // 1. Check active sessions on load
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      if (session?.user) fetchProfile(session.user.id);
-      setIsLoading(false);
+    supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
+      setSession(initialSession);
+      if (initialSession?.user) {
+        fetchProfile(initialSession.user.id);
+      } else {
+        setIsLoading(false);
+      }
     });
 
-    // 2. Listen for auth changes (login, logout, token refresh)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      if (session?.user) {
-        fetchProfile(session.user.id);
+    // 2. Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, currentSession) => {
+      setSession(currentSession);
+      if (currentSession?.user) {
+        await fetchProfile(currentSession.user.id);
       } else {
         setUser(null);
+        setIsLoading(false);
       }
-      setIsLoading(false);
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
-  // Fetches the custom data (like birthday) from your public.profiles table
-  const fetchProfile = async (userId: string) => {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .single();
-
-    if (!error && data) {
-      setUser(data as UserProfile);
-    }
-  };
-
   const signOut = async () => {
     await supabase.auth.signOut();
+    setUser(null);
+    setSession(null);
   };
 
   const updateUser = (updates: Partial<UserProfile>) => {

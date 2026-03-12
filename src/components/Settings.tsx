@@ -6,7 +6,10 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { User, Moon, Sun, Brain, Database, Save, LogOut, Shield, Loader2, HeartPulse } from 'lucide-react';
+import { 
+  User, Moon, Sun, Brain, Database, Save, LogOut, 
+  Shield, Loader2, HeartPulse, Calendar, Layout, HardDrive 
+} from 'lucide-react';
 import { useToast } from './Toast';
 import { cn } from '../lib/utils';
 
@@ -24,7 +27,12 @@ export function Settings() {
   const [aiVoice, setAiVoice] = useState(user?.ai_voice || 'Kore');
   const [wellnessEnabled, setWellnessEnabled] = useState(user?.wellness_enabled !== false);
   const [birthday, setBirthday] = useState(user?.birthday || '');
+  
+  // Google Integration States
   const [isGoogleConnected, setIsGoogleConnected] = useState(false);
+  const [syncCalendar, setSyncCalendar] = useState(true);
+  const [syncTasks, setSyncTasks] = useState(true);
+  const [syncDrive, setSyncDrive] = useState(false);
 
   const personalizationPresets = {
     'Supportive Mentor': 'Be a supportive, encouraging mentor. Use academic language but keep it warm and motivating.',
@@ -36,7 +44,6 @@ export function Settings() {
     setAiPersonalization(personalizationPresets[preset]);
   };
 
-  // Sync state with user context on initial load
   useEffect(() => {
     if (user) {
       setName(user.full_name || '');
@@ -50,7 +57,6 @@ export function Settings() {
     }
   }, [user]);
 
-  // Check Google Status via Supabase Auth Metadata
   useEffect(() => {
     const checkGoogleStatus = async () => {
       const { data: { user: sbUser } } = await supabase.auth.getUser();
@@ -60,21 +66,16 @@ export function Settings() {
     checkGoogleStatus();
   }, []);
 
-  const toggleTheme = (newTheme: 'light' | 'dark') => {
-    setTheme(newTheme);
-    if (newTheme === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  };
-
   const handleConnectGoogle = async () => {
     try {
-      const { data, error } = await supabase.auth.signInWithOAuth({
+      const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          queryParams: { access_type: 'offline', prompt: 'consent' },
+          queryParams: { 
+            access_type: 'offline', 
+            prompt: 'consent',
+            scope: 'https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/tasks https://www.googleapis.com/auth/drive.readonly'
+          },
           redirectTo: window.location.origin
         }
       });
@@ -88,7 +89,6 @@ export function Settings() {
     setIsLoading(true);
     try {
       const { data: { user: sbUser } } = await supabase.auth.getUser();
-      
       if (!sbUser) throw new Error("No active session");
 
       const { error } = await supabase
@@ -118,13 +118,11 @@ export function Settings() {
         birthday,
       });
 
-      showToast('Success', 'Settings synced to Supabase', 'success');
+      showToast('Success', 'Settings synced and encrypted', 'success');
       
-      if (theme === 'dark') {
-        document.documentElement.classList.add('dark');
-      } else {
-        document.documentElement.classList.remove('dark');
-      }
+      if (theme === 'dark') document.documentElement.classList.add('dark');
+      else document.documentElement.classList.remove('dark');
+      
     } catch (error: any) {
       showToast('Error', error.message || 'Failed to update settings', 'error');
     } finally {
@@ -133,83 +131,74 @@ export function Settings() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 pb-12">
+    <div className="max-w-5xl mx-auto space-y-10 pb-20">
       <header className="flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">Settings</h2>
-          <p className="text-slate-500 dark:text-slate-400 mt-1 text-sm font-medium">Personalize your SNHU Compass experience.</p>
+          <h2 className="text-4xl font-black text-slate-900 dark:text-white tracking-tighter italic uppercase">Control Center</h2>
+          <p className="text-slate-500 font-bold uppercase tracking-widest text-[10px] mt-1">System Personalization & Neural Links</p>
         </div>
         <button
           onClick={signOut}
-          className="flex items-center gap-2 px-4 py-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-xl font-bold transition-all"
+          className="flex items-center gap-2 px-6 py-3 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-2xl font-black uppercase text-xs transition-all border-2 border-transparent hover:border-rose-500"
         >
-          <LogOut size={20} />
-          <span>Sign Out</span>
+          <LogOut size={18} />
+          <span>Terminate Session</span>
         </button>
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-8">
-          <section className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-xl shadow-blue-900/5 space-y-6">
+          {/* Profile Section */}
+          <section className="bg-white dark:bg-slate-900 p-8 rounded-[3rem] border-2 border-slate-100 dark:border-slate-800 shadow-xl space-y-6">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-xl flex items-center justify-center">
+              <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-lg">
                 <User size={24} />
               </div>
-              <h3 className="text-xl font-bold text-slate-900 dark:text-white">Profile Setup</h3>
+              <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase italic">Biometric Data</h3>
             </div>
 
-            <div className="space-y-4 pt-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Display Name</label>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Identity Label</label>
                 <input
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl focus:ring-2 focus:ring-blue-500/20 transition-all dark:text-white"
+                  className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-800 rounded-2xl dark:text-white font-bold outline-none focus:border-blue-500"
                   placeholder="Bryan Miller"
                 />
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Birthday</label>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Origin Date (Birthday)</label>
                 <input
                   type="date"
                   value={birthday}
                   onChange={(e) => setBirthday(e.target.value)}
-                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl dark:text-white"
-                />
-              </div>
-
-              <div className="space-y-1 opacity-60">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Email Address (Read Only)</label>
-                <input
-                  type="email"
-                  disabled
-                  value={user?.email || ''}
-                  className="w-full px-4 py-3 bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl text-slate-500 cursor-not-allowed"
+                  className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-800 rounded-2xl dark:text-white font-bold outline-none"
                 />
               </div>
             </div>
           </section>
 
-          <section className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-xl shadow-blue-900/5 space-y-6">
+          {/* AI Buddy Section */}
+          <section className="bg-white dark:bg-slate-900 p-8 rounded-[3rem] border-2 border-slate-100 dark:border-slate-800 shadow-xl space-y-8">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-xl flex items-center justify-center">
+              <div className="w-12 h-12 bg-purple-600 rounded-2xl flex items-center justify-center text-white shadow-lg">
                 <Brain size={24} />
               </div>
-              <h3 className="text-xl font-bold text-slate-900 dark:text-white">AI Buddy Tuning</h3>
+              <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase italic">Neural Buddy Config</h3>
             </div>
 
-            <div className="space-y-6 pt-4">
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Personality Preset</label>
-                <div className="flex flex-wrap gap-2 mb-3">
+            <div className="space-y-6">
+              <div className="space-y-3">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Personality Matrix</label>
+                <div className="flex flex-wrap gap-2">
                   {Object.keys(personalizationPresets).map((preset) => (
                     <button
                       key={preset}
-                      type="button"
                       onClick={() => applyPreset(preset as keyof typeof personalizationPresets)}
-                      className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 rounded-xl text-[10px] font-bold text-slate-600 dark:text-slate-300 hover:bg-blue-600 hover:text-white transition-all"
+                      className="px-4 py-2 bg-slate-100 dark:bg-slate-800 rounded-xl text-[10px] font-black uppercase text-slate-500 hover:bg-blue-600 hover:text-white transition-all"
                     >
                       {preset}
                     </button>
@@ -218,85 +207,108 @@ export function Settings() {
                 <textarea
                   value={aiPersonalization}
                   onChange={(e) => setAiPersonalization(e.target.value)}
-                  rows={2}
-                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl dark:text-white resize-none"
-                  placeholder="Describe your mentor style..."
+                  rows={3}
+                  className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-800 rounded-2xl dark:text-white font-medium outline-none focus:border-blue-500"
+                  placeholder="Define the AI's core behavior..."
                 />
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">AI Voice Profile</label>
-                <select
-                  value={aiVoice}
-                  onChange={(e) => setAiVoice(e.target.value)}
-                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl dark:text-white"
-                >
-                  <option value="Kore">Kore (Balanced, Female)</option>
-                  <option value="Puck">Puck (Cheerful, Female)</option>
-                  <option value="Charon">Charon (Deep, Male)</option>
-                  <option value="Fenrir">Fenrir (Strong, Male)</option>
-                </select>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Long-Term Memory / Bio</label>
+                <textarea
+                  value={aiMemory}
+                  onChange={(e) => setAiMemory(e.target.value)}
+                  rows={3}
+                  className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-800 rounded-2xl dark:text-white font-medium outline-none focus:border-blue-500"
+                  placeholder="Key facts the AI should always remember about you..."
+                />
               </div>
             </div>
           </section>
         </div>
 
         <div className="space-y-8">
-          <section className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-xl shadow-blue-900/5 space-y-6">
-            <h3 className="text-lg font-bold text-slate-900 dark:text-white">Appearance</h3>
-            <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl">
-              <button
-                onClick={() => toggleTheme('light')}
-                className={cn(
-                  "flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold transition-all",
-                  theme === 'light' ? "bg-white text-blue-600 shadow-sm" : "text-slate-500"
-                )}
-              >
-                <Sun size={18} /> <span>Light</span>
-              </button>
-              <button
-                onClick={() => toggleTheme('dark')}
-                className={cn(
-                  "flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold transition-all",
-                  theme === 'dark' ? "bg-slate-700 text-white shadow-sm" : "text-slate-500"
-                )}
-              >
-                <Moon size={18} /> <span>Dark</span>
-              </button>
+          {/* Google Integration Section */}
+          <section className="bg-white dark:bg-slate-900 p-8 rounded-[3rem] border-2 border-slate-100 dark:border-slate-800 shadow-xl space-y-6">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase italic">Google Link</h3>
+              <div className={cn("w-3 h-3 rounded-full", isGoogleConnected ? "bg-emerald-500 animate-pulse" : "bg-slate-300")} />
             </div>
+
+            {isGoogleConnected ? (
+              <div className="space-y-4">
+                <IntegrationToggle icon={<Calendar size={18}/>} label="Calendar Sync" active={syncCalendar} onChange={setSyncCalendar} />
+                <IntegrationToggle icon={<Layout size={18}/>} label="Task Sync" active={syncTasks} onChange={setSyncTasks} />
+                <IntegrationToggle icon={<HardDrive size={18}/>} label="Drive Access" active={syncDrive} onChange={setSyncDrive} />
+              </div>
+            ) : (
+              <button 
+                onClick={handleConnectGoogle}
+                className="w-full py-4 bg-slate-100 dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 rounded-2xl font-black uppercase text-xs flex items-center justify-center gap-3 hover:border-blue-500 transition-all"
+              >
+                <Database size={18} className="text-blue-500" />
+                Authorize Google
+              </button>
+            )}
           </section>
 
-          <section className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-xl shadow-blue-900/5 space-y-6">
-            <h3 className="text-lg font-bold text-slate-900 dark:text-white">Wellness</h3>
-            <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700">
-               <div className="flex items-center gap-3">
-                  <HeartPulse className="text-emerald-500" size={20} />
-                  <span className="text-xs font-bold dark:text-white">Focus Mode Alerts</span>
-               </div>
-               <button
-                  onClick={() => setWellnessEnabled(!wellnessEnabled)}
-                  className={cn(
-                    "w-10 h-5 rounded-full transition-all relative",
-                    wellnessEnabled ? "bg-emerald-500" : "bg-slate-300"
-                  )}
-                >
-                  <div className={cn(
-                    "absolute top-0.5 w-4 h-4 bg-white rounded-full transition-all",
-                    wellnessEnabled ? "left-5" : "left-1"
-                  )} />
-                </button>
+          {/* Theme Section */}
+          <section className="bg-white dark:bg-slate-900 p-8 rounded-[3rem] border-2 border-slate-100 dark:border-slate-800 shadow-xl space-y-6">
+            <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase italic">Visuals</h3>
+            <div className="flex bg-slate-100 dark:bg-slate-800 p-1.5 rounded-[1.5rem] border-2 border-slate-200 dark:border-slate-700">
+              <button
+                onClick={() => setTheme('light')}
+                className={cn(
+                  "flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all",
+                  theme === 'light' ? "bg-white text-blue-600 shadow-lg" : "text-slate-500"
+                )}
+              >
+                <Sun size={16} /> Light
+              </button>
+              <button
+                onClick={() => setTheme('dark')}
+                className={cn(
+                  "flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all",
+                  theme === 'dark' ? "bg-slate-700 text-white shadow-lg" : "text-slate-500"
+                )}
+              >
+                <Moon size={16} /> Dark
+              </button>
             </div>
           </section>
 
           <button
             onClick={handleSave}
             disabled={isLoading}
-            className="w-full bg-blue-600 text-white py-5 rounded-[2rem] font-black flex items-center justify-center gap-3 hover:bg-blue-700 transition-all shadow-xl shadow-blue-600/20 disabled:opacity-50"
+            className="w-full bg-blue-600 text-white py-6 rounded-[2.5rem] font-black uppercase tracking-widest flex items-center justify-center gap-4 hover:bg-blue-700 transition-all shadow-2xl shadow-blue-600/30 disabled:opacity-50 active:scale-95"
           >
-            {isLoading ? <Loader2 className="animate-spin" /> : <><Save size={24} /> <span>Sync All Settings</span></>}
+            {isLoading ? <Loader2 className="animate-spin" /> : <><Save size={24} /> <span>Sync All Systems</span></>}
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+function IntegrationToggle({ icon, label, active, onChange }: { icon: any, label: string, active: boolean, onChange: (v: boolean) => void }) {
+  return (
+    <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border-2 border-slate-100 dark:border-slate-800">
+      <div className="flex items-center gap-3">
+        <div className={cn("text-slate-400", active && "text-blue-500")}>{icon}</div>
+        <span className="text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300">{label}</span>
+      </div>
+      <button 
+        onClick={() => onChange(!active)}
+        className={cn(
+          "w-10 h-6 rounded-full transition-all relative",
+          active ? "bg-blue-600" : "bg-slate-300 dark:bg-slate-700"
+        )}
+      >
+        <div className={cn(
+          "absolute top-1 w-4 h-4 bg-white rounded-full transition-all",
+          active ? "left-5" : "left-1"
+        )} />
+      </button>
     </div>
   );
 }

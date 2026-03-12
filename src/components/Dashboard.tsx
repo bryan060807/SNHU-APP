@@ -14,7 +14,8 @@ import {
   Zap, 
   Sparkles,
   BookOpen,
-  Layout
+  Layout,
+  TrendingUp
 } from 'lucide-react';
 import { format, isBefore, addDays } from 'date-fns';
 import { cn } from '../lib/utils';
@@ -29,12 +30,11 @@ interface DashboardProps {
 }
 
 export function Dashboard({ courses, assignments, updateStatus, setView }: DashboardProps) {
-  const { profile } = useAuth();
+  const { user } = useAuth();
 
   // Personalization Logic
   const today = new Date();
-  const isBirthMonth = profile?.birthday ? 
-    (today.getMonth() + 1 === Number(profile.birthday.split('-')[1])) : false;
+  const firstName = user?.full_name?.split(' ')[0] || 'Scholar';
 
   // Filter Logic
   const incomplete = assignments.filter(a => a.status !== 'completed');
@@ -51,135 +51,124 @@ export function Dashboard({ courses, assignments, updateStatus, setView }: Dashb
   ).length;
 
   // Stats Calculation
-  const totalHours = incomplete.reduce((acc, curr) => acc + curr.estimatedHours, 0);
+  const totalHoursRemaining = incomplete.reduce((acc, curr) => acc + (curr.estimatedHours || 0), 0);
   const progressPercent = assignments.length > 0 
     ? Math.round((assignments.filter(a => a.status === 'completed').length / assignments.length) * 100) 
     : 0;
 
   return (
-    <div className="space-y-8 pb-12">
+    <div className="space-y-10 pb-20">
       {/* Header & Personalization */}
-      <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+      <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
-          <h2 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">
-            Welcome back, {profile?.full_name?.split(' ')[0] || 'Scholar'}
+          <h2 className="text-4xl font-black text-slate-900 dark:text-white tracking-tighter italic uppercase">
+            Systems Online, {firstName}
           </h2>
-          <p className="text-slate-500 dark:text-slate-400 mt-1">
+          <p className="text-slate-500 dark:text-slate-400 mt-2 font-medium">
             {completedToday > 0 
-              ? `You've crushed ${completedToday} tasks today. Keep the momentum!` 
-              : "Let's tackle this week's SNHU modules."}
+              ? `Operational Excellence: ${completedToday} modules cleared today.` 
+              : "Awaiting input. Select a module to begin extraction."}
           </p>
         </div>
         
-        {isBirthMonth && (
-          <motion.div 
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-3 rounded-2xl text-white shadow-lg shadow-blue-500/20 flex items-center gap-3"
-          >
-            <div className="bg-white/20 p-2 rounded-xl">
-              <Sparkles size={20} className="text-yellow-300 animate-pulse" />
-            </div>
-            <div>
-              <h4 className="text-xs font-bold uppercase tracking-widest">Birthday Month</h4>
-              <p className="text-[10px] opacity-90">Special milestone active for you!</p>
-            </div>
-          </motion.div>
-        )}
+        <div className="flex items-center gap-3 bg-white dark:bg-slate-900 px-6 py-3 rounded-[2rem] border-2 border-slate-100 dark:border-slate-800 shadow-xl shadow-blue-900/5">
+          <TrendingUp size={20} className="text-blue-600" />
+          <span className="text-xs font-black uppercase tracking-widest text-slate-400">Week 1 / 8</span>
+        </div>
       </header>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard 
-          label="Academic Momentum" 
+          label="Course Load" 
           value={`${progressPercent}%`} 
-          subValue="Completion Rate"
-          icon={<Zap size={20} />}
-          color="bg-blue-600"
+          subValue="Term Completion"
+          icon={<Zap size={22} fill="currentColor" />}
+          color="bg-blue-600 shadow-blue-600/20"
         />
         <StatCard 
-          label="Time Commitment" 
-          value={`${totalHours}h`} 
-          subValue="Remaining This Week"
-          icon={<Clock size={20} />}
-          color="bg-indigo-600"
+          label="Time Debt" 
+          value={`${totalHoursRemaining}h`} 
+          subValue="7-3-1 Engagement"
+          icon={<Clock size={22} />}
+          color="bg-slate-900 dark:bg-blue-950 shadow-slate-900/20"
         />
         <StatCard 
-          label="Courses" 
+          label="Active Sync" 
           value={courses.length.toString()} 
-          subValue="Active Terms"
-          icon={<BookOpen size={20} />}
-          color="bg-emerald-600"
+          subValue="Course Modules"
+          icon={<BookOpen size={22} />}
+          color="bg-emerald-600 shadow-emerald-600/20"
         />
         <StatCard 
-          label="Overdue" 
+          label="Failures" 
           value={overdue.length.toString()} 
-          subValue="Action Required"
-          icon={<AlertCircle size={20} />}
-          color={overdue.length > 0 ? "bg-rose-600" : "bg-slate-400"}
+          subValue="Overdue Tasks"
+          icon={<AlertCircle size={22} />}
+          color={overdue.length > 0 ? "bg-rose-600 shadow-rose-600/20" : "bg-slate-400 shadow-slate-400/10"}
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
         {/* Main Feed: Upcoming Assignments */}
-        <div className="lg:col-span-2 space-y-6">
-          <section className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-xl shadow-blue-900/5 overflow-hidden">
-            <div className="p-8 border-b border-slate-50 dark:border-slate-800 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-xl flex items-center justify-center">
-                  <Calendar size={22} />
+        <div className="lg:col-span-2 space-y-8">
+          <section className="bg-white dark:bg-slate-900 rounded-[3rem] border-2 border-slate-100 dark:border-slate-800 shadow-2xl shadow-blue-900/5 overflow-hidden">
+            <div className="p-8 md:p-10 border-b-2 border-slate-50 dark:border-slate-800 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-2xl flex items-center justify-center border-2 border-blue-100 dark:border-blue-800">
+                  <Calendar size={24} />
                 </div>
-                <h3 className="text-xl font-bold text-slate-900 dark:text-white">Upcoming Deadlines</h3>
+                <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase italic tracking-tight">Active Deadlines</h3>
               </div>
               <button 
                 onClick={() => setView('assignments')}
-                className="text-sm font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+                className="p-3 bg-slate-50 dark:bg-slate-800 rounded-2xl text-slate-400 hover:text-blue-600 transition-all"
               >
-                View All <ArrowRight size={14} />
+                <ArrowRight size={20} />
               </button>
             </div>
             
-            <div className="divide-y divide-slate-50 dark:divide-slate-800">
+            <div className="divide-y-2 divide-slate-50 dark:divide-slate-800">
               {upcoming.length > 0 ? (
                 upcoming.map((a) => {
                   const course = courses.find(c => c.id === a.courseId);
                   const isDueSoon = isBefore(new Date(a.dueDate), addDays(today, 2));
                   
                   return (
-                    <div key={a.id} className="p-6 flex items-center justify-between group hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
-                      <div className="flex items-center gap-4">
+                    <div key={a.id} className="p-8 flex items-center justify-between group hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-all">
+                      <div className="flex items-center gap-6">
                         <button 
                           onClick={() => updateStatus(a.id, 'completed')}
-                          className="w-6 h-6 rounded-full border-2 border-slate-200 dark:border-slate-700 flex items-center justify-center text-transparent hover:border-blue-500 hover:text-blue-500 transition-all"
+                          className="w-10 h-10 rounded-xl border-2 border-slate-200 dark:border-slate-700 flex items-center justify-center text-transparent hover:border-emerald-500 hover:text-emerald-500 transition-all"
                         >
-                          <CheckCircle2 size={16} />
+                          <CheckCircle2 size={24} />
                         </button>
                         <div>
-                          <p className="font-bold text-slate-900 dark:text-white">{a.title}</p>
-                          <div className="flex items-center gap-3 mt-1">
-                            <span className={cn("text-[10px] font-black uppercase px-2 py-0.5 rounded", course?.color || 'bg-slate-500', 'text-white')}>
+                          <p className="text-lg font-black text-slate-900 dark:text-white tracking-tight">{a.title}</p>
+                          <div className="flex items-center gap-4 mt-2">
+                            <span className={cn("text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border-2", course?.color || 'bg-slate-500 border-slate-500', 'text-white')}>
                               {course?.code}
                             </span>
                             <span className={cn(
-                              "text-xs font-medium flex items-center gap-1",
-                              isDueSoon ? "text-rose-500" : "text-slate-500 dark:text-slate-400"
+                              "text-[11px] font-bold flex items-center gap-1.5 uppercase tracking-tighter",
+                              isDueSoon ? "text-rose-500" : "text-slate-400"
                             )}>
-                              <Clock size={12} />
-                              {format(new Date(a.dueDate), 'MMM d, p')}
+                              <Clock size={14} />
+                              {format(new Date(a.dueDate), 'MMM d, h:mm a')}
                             </span>
                           </div>
                         </div>
                       </div>
                       <div className="hidden sm:block">
-                         <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">{a.type}</span>
+                         <span className="text-[10px] font-black text-slate-300 dark:text-slate-600 uppercase tracking-[0.2em]">{a.type}</span>
                       </div>
                     </div>
                   );
                 })
               ) : (
-                <div className="p-12 text-center text-slate-400 dark:text-slate-600">
-                  <Layout size={48} className="mx-auto mb-4 opacity-20" />
-                  <p className="font-medium">No immediate deadlines. Time for a break?</p>
+                <div className="p-20 text-center">
+                  <Layout size={64} className="mx-auto mb-6 text-slate-200 dark:text-slate-800" />
+                  <p className="font-black text-slate-400 uppercase tracking-widest italic">All Modules Cleared</p>
                 </div>
               )}
             </div>
@@ -187,10 +176,10 @@ export function Dashboard({ courses, assignments, updateStatus, setView }: Dashb
         </div>
 
         {/* Sidebar: Course Progress */}
-        <div className="space-y-6">
-          <section className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-xl shadow-blue-900/5">
-            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-6">Course Focus</h3>
-            <div className="space-y-6">
+        <div className="space-y-8">
+          <section className="bg-white dark:bg-slate-900 p-10 rounded-[3rem] border-2 border-slate-100 dark:border-slate-800 shadow-2xl shadow-blue-900/5">
+            <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase italic tracking-tight mb-8">Course Saturation</h3>
+            <div className="space-y-8">
               {courses.map(course => {
                 const courseAssignments = assignments.filter(a => a.courseId === course.id);
                 const courseCompleted = courseAssignments.filter(a => a.status === 'completed').length;
@@ -199,34 +188,31 @@ export function Dashboard({ courses, assignments, updateStatus, setView }: Dashb
                   : 0;
 
                 return (
-                  <div key={course.id} className="space-y-2">
-                    <div className="flex justify-between text-xs font-bold uppercase tracking-wider">
+                  <div key={course.id} className="space-y-3">
+                    <div className="flex justify-between text-[10px] font-black uppercase tracking-[0.1em]">
                       <span className="text-slate-400">{course.code}</span>
                       <span className="text-slate-900 dark:text-white">{coursePercent}%</span>
                     </div>
-                    <div className="h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                    <div className="h-4 bg-slate-50 dark:bg-slate-800/50 rounded-full p-1 border border-slate-100 dark:border-slate-800">
                       <motion.div 
                         initial={{ width: 0 }}
                         animate={{ width: `${coursePercent}%` }}
-                        className={cn("h-full", course.color.replace('text-', 'bg-'))}
+                        className={cn("h-full rounded-full transition-all duration-1000", course.color.replace('text-', 'bg-'))}
                       />
                     </div>
                   </div>
                 );
               })}
-              {courses.length === 0 && (
-                <p className="text-sm text-slate-500 italic text-center py-4">Add courses to track progress.</p>
-              )}
             </div>
           </section>
 
-          {/* SNHU Quick Tips */}
-          <div className="bg-blue-50 dark:bg-blue-900/20 p-6 rounded-3xl border border-blue-100 dark:border-blue-900/30">
-            <h4 className="text-xs font-bold text-blue-900 dark:text-blue-300 uppercase tracking-widest mb-2 flex items-center gap-2">
-              <Zap size={14} /> SNHU Pro-Tip
+          {/* Industrial Tip */}
+          <div className="bg-slate-900 dark:bg-blue-950 p-8 rounded-[2.5rem] border-2 border-slate-800 shadow-2xl">
+            <h4 className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+              <Zap size={16} fill="currentColor" /> System Advisory
             </h4>
-            <p className="text-xs text-blue-700 dark:text-blue-400 leading-relaxed font-medium">
-              Initial discussion posts are due Thursdays by 11:59 PM. Set your timer for 45 minutes tonight to beat the rush.
+            <p className="text-xs text-slate-300 leading-relaxed font-bold italic uppercase tracking-tighter">
+              Thursday initial posts are critical for peer response compliance. Complete Discussion posts by 21:00 to avoid late-term oxidation.
             </p>
           </div>
         </div>
@@ -238,15 +224,15 @@ export function Dashboard({ courses, assignments, updateStatus, setView }: Dashb
 function StatCard({ label, value, subValue, icon, color }: { label: string, value: string, subValue: string, icon: React.ReactNode, color: string }) {
   return (
     <motion.div 
-      whileHover={{ y: -5 }}
-      className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-sm"
+      whileHover={{ y: -8 }}
+      className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border-2 border-slate-50 dark:border-slate-800 shadow-xl shadow-blue-900/5 flex flex-col items-center text-center"
     >
-      <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center text-white mb-4", color)}>
+      <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center text-white mb-6 shadow-lg", color)}>
         {icon}
       </div>
-      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{label}</p>
-      <h3 className="text-2xl font-black text-slate-900 dark:text-white mt-1">{value}</h3>
-      <p className="text-[10px] font-bold text-slate-500 mt-1">{subValue}</p>
+      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{label}</p>
+      <h3 className="text-3xl font-black text-slate-900 dark:text-white tracking-tighter italic uppercase">{value}</h3>
+      <p className="text-[10px] font-bold text-slate-500 mt-2 uppercase tracking-widest">{subValue}</p>
     </motion.div>
   );
 }
