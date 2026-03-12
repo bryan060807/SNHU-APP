@@ -47,21 +47,36 @@ export function IntegrationsHub() {
     setIsLoading(true);
     
     try {
-      // 1. Invoke the Edge Function for Calendar
-      const { data: calData, error: calError } = await supabase.functions.invoke('google-calendar');
-      
-      if (calError) {
-        console.warn("Calendar Sync Failed:", calError);
-        // If the error is 401, the token might be expired
-        if (calError.status === 401) {
+      // Execute all Edge Functions in parallel for maximum speed
+      const [calRes, taskRes, driveRes] = await Promise.all([
+        supabase.functions.invoke('google-calendar'),
+        supabase.functions.invoke('google-tasks'),
+        supabase.functions.invoke('google-drive')
+      ]);
+
+      // 1. Handle Calendar Data
+      if (calRes.error) {
+        console.warn("Calendar Sync Failed:", calRes.error);
+        if (calRes.error.status === 401) {
           showToast('Session Expired', 'Please re-authorize Google in Settings.', 'error');
         }
       } else {
-        setCalendarEvents(calData || []);
+        setCalendarEvents(calRes.data || []);
       }
 
-      // 2. Future expansion for Tasks/Drive
-      // const { data: taskData } = await supabase.functions.invoke('google-tasks');
+      // 2. Handle Tasks Data
+      if (taskRes.error) {
+        console.warn("Tasks Sync Failed:", taskRes.error);
+      } else {
+        setTasks(taskRes.data || []);
+      }
+
+      // 3. Handle Drive Data
+      if (driveRes.error) {
+        console.warn("Drive Sync Failed:", driveRes.error);
+      } else {
+        setDriveFiles(driveRes.data || []);
+      }
       
     } catch (error) {
       console.error('Integration Sync Error:', error);
@@ -165,11 +180,26 @@ export function IntegrationsHub() {
               <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase italic tracking-tight">Tasks</h3>
             </div>
 
-            <div className="space-y-3 flex-1 min-h-[200px]">
-               <div className="h-full flex flex-col items-center justify-center text-slate-400 opacity-30">
+            <div className="space-y-3 flex-1 overflow-y-auto max-h-[300px] min-h-[200px]">
+              {isLoading ? (
+                <div className="h-full flex items-center justify-center py-10"><Loader2 className="animate-spin text-emerald-500" /></div>
+              ) : tasks.length > 0 ? (
+                tasks.map((task) => (
+                  <div key={task.id} className="p-4 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-100 dark:border-slate-800">
+                    <p className="text-sm font-bold text-slate-700 dark:text-slate-200">{task.title}</p>
+                    {task.due && (
+                      <span className="text-[10px] font-black text-emerald-500 uppercase tracking-tighter">
+                        Due {format(new Date(task.due), 'MMM d')}
+                      </span>
+                    )}
+                  </div>
+                ))
+              ) : (
+                <div className="h-full flex flex-col items-center justify-center text-slate-400 opacity-30">
                    <CheckSquare size={32} className="mb-2" />
                    <p className="text-[10px] font-black uppercase tracking-widest">No Active Google Tasks</p>
                 </div>
+              )}
             </div>
             <a href="https://tasks.google.com/" target="_blank" rel="noreferrer" className="w-full py-4 bg-slate-50 dark:bg-slate-800 rounded-2xl font-black uppercase text-[10px] tracking-widest flex items-center justify-center gap-2 hover:bg-emerald-600 hover:text-white transition-all">
               Launch Tasks <ExternalLink size={14} />
@@ -185,11 +215,30 @@ export function IntegrationsHub() {
               <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase italic tracking-tight">Drive</h3>
             </div>
 
-            <div className="space-y-3 flex-1 min-h-[200px]">
-               <div className="h-full flex flex-col items-center justify-center text-slate-400 opacity-30">
+            <div className="space-y-3 flex-1 overflow-y-auto max-h-[300px] min-h-[200px]">
+              {isLoading ? (
+                <div className="h-full flex items-center justify-center py-10"><Loader2 className="animate-spin text-purple-500" /></div>
+              ) : driveFiles.length > 0 ? (
+                driveFiles.map((file) => (
+                  <a 
+                    key={file.id} 
+                    href={file.webViewLink} 
+                    target="_blank" 
+                    rel="noreferrer" 
+                    className="block p-4 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-100 dark:border-slate-800 hover:border-purple-500 transition-all"
+                  >
+                    <p className="text-sm font-bold text-slate-700 dark:text-slate-200 truncate">{file.name}</p>
+                    <span className="text-[10px] font-black text-purple-500 uppercase tracking-tighter">
+                      Open Document
+                    </span>
+                  </a>
+                ))
+              ) : (
+                <div className="h-full flex flex-col items-center justify-center text-slate-400 opacity-30">
                    <FileText size={32} className="mb-2" />
-                   <p className="text-[10px] font-black uppercase tracking-widest">Ready for Extraction</p>
+                   <p className="text-[10px] font-black uppercase tracking-widest">Neural Extraction Empty</p>
                 </div>
+              )}
             </div>
             <a href="https://drive.google.com/" target="_blank" rel="noreferrer" className="w-full py-4 bg-slate-50 dark:bg-slate-800 rounded-2xl font-black uppercase text-[10px] tracking-widest flex items-center justify-center gap-2 hover:bg-purple-600 hover:text-white transition-all">
               Launch Drive <ExternalLink size={14} />
