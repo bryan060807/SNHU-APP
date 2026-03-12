@@ -70,6 +70,27 @@ export function SyllabusImporter({ onImport, onClose }: SyllabusImporterProps) {
     }
   };
 
+  // --- MISSING FUNCTIONS ADDED HERE ---
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleFile(e.dataTransfer.files[0]);
+    }
+  };
+  // ------------------------------------
+
   const handlePasteSubmit = async () => {
     if (!pastedText.trim()) return;
     setIsProcessing(true);
@@ -130,8 +151,9 @@ export function SyllabusImporter({ onImport, onClose }: SyllabusImporterProps) {
                 <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Option 1: Industrial Scan</h3>
                 <div 
                   onClick={() => fileInputRef.current?.click()}
-                  onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
-                  onDragLeave={() => setDragActive(false)}
+                  onDragEnter={handleDrag}
+                  onDragOver={handleDrag}
+                  onDragLeave={handleDrag}
                   onDrop={handleDrop}
                   className={cn(
                     "h-52 border-2 border-dashed rounded-[2.5rem] flex flex-col items-center justify-center gap-4 cursor-pointer transition-all",
