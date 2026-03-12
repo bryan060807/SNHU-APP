@@ -22,13 +22,14 @@ import { useToast } from './components/Toast';
 import { useAuth } from './contexts/AuthContext';
 
 export default function App() {
-  const { user, profile, isLoading } = useAuth();
+  const { user, profile, isLoading: authLoading } = useAuth();
   const { showToast } = useToast();
   const [currentView, setCurrentView] = useState<View>('dashboard');
   const [courses, setCourses] = useState<Course[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [dataLoading, setDataLoading] = useState(false);
 
-  // Apply theme from the user's public profile
+  // Apply theme from the user's public profile (AIBRY Aesthetic)
   useEffect(() => {
     if (profile?.theme === 'dark') {
       document.documentElement.classList.add('dark');
@@ -37,39 +38,29 @@ export default function App() {
     }
   }, [profile?.theme]);
 
-  // Personalized Birthday Celebration Logic
+  // Personalized Birthday Celebration: June 13th Logic
   useEffect(() => {
     if (profile?.birthday) {
-      // Parses 'YYYY-MM-DD' from the Supabase profiles table
       const [, birthMonth, birthDay] = profile.birthday.split('-').map(Number);
-      
       const today = new Date();
-      const currentMonth = today.getMonth() + 1;
-      const currentDate = today.getDate();
-
-      // Trigger if today matches the month and day in the user's settings
-      if (currentMonth === birthMonth && currentDate === birthDay) {
+      if ((today.getMonth() + 1) === birthMonth && today.getDate() === birthDay) {
         confetti({
           particleCount: 150,
           spread: 70,
           origin: { y: 0.6 },
-          colors: ['#003057', '#3b82f6', '#ffffff'] // SNHU-themed colors
+          colors: ['#003057', '#3b82f6', '#ffffff']
         });
-        
-        showToast(
-          `Happy Birthday, ${profile.full_name || 'Student'}!`, 
-          "Enjoy your special day and keep crushing those modules!", 
-          'success'
-        );
+        showToast(`Happy Birthday!`, "Time to celebrate while you crush those modules.", 'success');
       }
     }
   }, [profile]);
 
-  // Fetch courses and assignments from Supabase
+  // Fetch data from Supabase
   useEffect(() => {
     if (!user) return;
 
     const fetchData = async () => {
+      setDataLoading(true);
       try {
         const [coursesRes, assignmentsRes] = await Promise.all([
           supabase.from('courses').select('*'),
@@ -78,7 +69,6 @@ export default function App() {
 
         if (coursesRes.data) setCourses(coursesRes.data);
         if (assignmentsRes.data) {
-          // Map snake_case from DB to camelCase for the frontend
           setAssignments(assignmentsRes.data.map((a: any) => ({
             id: a.id,
             courseId: a.course_id,
@@ -91,55 +81,21 @@ export default function App() {
           })));
         }
       } catch (error) {
-        console.error('Failed to fetch data from Supabase:', error);
-        showToast('Sync Error', 'Failed to retrieve your academic data.', 'error');
+        showToast('Sync Error', 'Failed to retrieve academic data.', 'error');
+      } finally {
+        setDataLoading(false);
       }
     };
 
     fetchData();
+
+    // Real-time subscription for instant updates across devices
+    const channel = supabase.channel('schema-db-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'assignments' }, fetchData)
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
   }, [user]);
-
-  // Background notification checker (runs every minute)
-  useEffect(() => {
-    if (!user) return;
-    requestNotificationPermission();
-
-    const sentNotifications = new Set<string>();
-
-    const checkDeadlines = () => {
-      const now = new Date();
-      assignments.forEach(a => {
-        if (a.status === 'completed') return;
-
-        const dueDate = new Date(a.dueDate);
-        const diffMs = dueDate.getTime() - now.getTime();
-        const diffMins = Math.floor(diffMs / (1000 * 60));
-
-        const thresholds = [
-          { mins: 1440, label: '24 hours' },
-          { mins: 60, label: '1 hour' },
-          { mins: 15, label: '15 minutes' }
-        ];
-
-        thresholds.forEach(t => {
-          const key = `${a.id}-${t.mins}`;
-          if (diffMins === t.mins && !sentNotifications.has(key)) {
-            const course = courses.find(c => c.id === a.courseId);
-            sendNotification(`SNHU Deadline: ${a.title}`, {
-              body: `Due in ${t.label} for ${course?.code || 'your course'}.`,
-              tag: key
-            }, showToast);
-            sentNotifications.add(key);
-          }
-        });
-      });
-    };
-
-    const interval = setInterval(checkDeadlines, 60000);
-    checkDeadlines();
-
-    return () => clearInterval(interval);
-  }, [assignments, courses, user]);
 
   // Mutation Handlers
   const addAssignment = async (assignment: Omit<Assignment, 'id'>) => {
@@ -155,32 +111,29 @@ export default function App() {
       }])
       .select();
 
-    if (!error && data) {
-      setAssignments([...assignments, { ...assignment, id: data[0].id }]);
-      showToast('Success', 'Assignment saved.', 'success');
-    }
+    if (error) showToast('Error', 'Could not save assignment.', 'error');
   };
 
   const updateAssignmentStatus = async (id: string, status: Assignment['status']) => {
-    const { error } = await supabase
-      .from('assignments')
-      .update({ 
-        status, 
-        completed_at: status === 'completed' ? new Date().toISOString() : null 
-      })
+    await supabase.from('assignments')
+      .update({ status, completed_at: status === 'completed' ? new Date().toISOString() : null })
       .eq('id', id);
+  };
 
+  const deleteAssignment = async (id: string) => {
+    const { error } = await supabase.from('assignments').delete().eq('id', id);
     if (!error) {
-      setAssignments(assignments.map(a => a.id === id ? { ...a, status } : a));
+      setAssignments(assignments.filter(a => a.id !== id));
+      showToast('Deleted', 'Assignment removed.', 'success');
     }
   };
 
-  if (isLoading) {
+  if (authLoading || dataLoading) {
     return (
       <div className="h-screen flex items-center justify-center bg-[#F8F9FA] dark:bg-slate-950">
         <div className="flex flex-col items-center gap-4">
           <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
-          <p className="text-slate-500 font-bold animate-pulse">Syncing Academic Compass...</p>
+          <p className="text-slate-500 font-bold animate-pulse uppercase tracking-tighter">Syncing AIBRY Compass...</p>
         </div>
       </div>
     );
@@ -191,7 +144,6 @@ export default function App() {
   return (
     <div className="flex flex-col lg:flex-row h-screen bg-[#F8F9FA] dark:bg-slate-950 text-slate-900 dark:text-white transition-colors duration-300">
       <Sidebar currentView={currentView} setView={setCurrentView} />
-      
       <main className="flex-1 overflow-y-auto p-4 md:p-8 pb-24 lg:pb-8">
         <div className="max-w-5xl mx-auto">
           {currentView === 'dashboard' && (
@@ -203,8 +155,7 @@ export default function App() {
               assignments={assignments} 
               addAssignment={addAssignment} 
               updateStatus={updateAssignmentStatus} 
-              deleteAssignment={(id) => supabase.from('assignments').delete().eq('id', id)} 
-              updateAssignment={(updated) => console.log('Update logic needed')}
+              deleteAssignment={deleteAssignment} 
             />
           )}
           {currentView === 'courses' && (
