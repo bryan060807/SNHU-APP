@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { serve } from "std/http/server.ts";
-import { createClient } from "supabase";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,19 +12,20 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-  // 1. Handle CORS preflight
+  // 1. Handle CORS preflight handshake
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+    // Checks for multiple common secret naming conventions to ensure the link holds
     const serviceKey = Deno.env.get('SERVICE_ROLE_KEY') ?? Deno.env.get('SB_SERVICE_ROLE_KEY') ?? '';
 
-    if (!serviceKey) throw new Error("Internal Config Error: Service Key Missing.");
+    if (!serviceKey) throw new Error("Internal Config Error: Service Role Key Missing.");
 
-    // Initialize Admin Client to bypass RLS for token lookup
+    // Initialize Admin Client (Bypasses RLS to extract provider tokens)
     const supabaseAdmin = createClient(supabaseUrl, serviceKey);
 
-    // 2. Extract User Identity from the provided JWT
+    // 2. Extract User Identity from the Request JWT
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) throw new Error("Missing Authorization header.");
 
@@ -34,7 +35,7 @@ serve(async (req) => {
 
     if (authError || !user) throw new Error("Unauthorized: Invalid user session.");
 
-    // 3. Extraction Protocol: Retrieve the stored Google Provider Token
+    // 3. Extraction Protocol: Retrieve the Google Provider Token
     const { data: userData, error: userError } = await supabaseAdmin.auth.admin.getUserById(user.id);
     
     if (userError || !userData.user) throw new Error("Identity Lookup Failed.");
@@ -67,7 +68,7 @@ serve(async (req) => {
 
     const taskData = await response.json();
 
-    // 5. Catch Google API errors before they hit the frontend
+    // 5. Catch Google API errors before they short-circuit the frontend
     if (!response.ok) {
       console.error("Google Tasks API Failure:", taskData);
       return new Response(JSON.stringify({ 

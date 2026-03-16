@@ -1,17 +1,11 @@
 [functions.google-calendar]
-enabled = true
 verify_jwt = true
-import_map = "./functions/deno.json"
-entrypoint = "./functions/google-calendar/index.ts"
-
-[functions.google-tasks]
-enabled = true
-verify_jwt = true
-import_map = "./functions/deno.json"
-entrypoint = "./functions/google-tasks/index.ts"
+import_map = "./supabase/functions/deno.json" # Ensure this path is 100% accurate from root
 
 [functions.google-drive]
-enabled = true
 verify_jwt = true
-import_map = "./functions/deno.json"
-entrypoint = "./functions/google-drive/index.ts"
+import_map = "./supabase/functions/deno.json"
+
+[functions.google-tasks]
+verify_jwt = true
+import_map = "./supabase/functions/deno.json"
