@@ -109,19 +109,23 @@ export function CourseList({ courses, addCourse, deleteCourse, bulkAddAssignment
 
       if (!courseData?.id) throw new Error("Course initialization failed.");
 
+      // Normalize termStart to midnight for clean arithmetic
       const termStart = new Date(newTermStart);
+      termStart.setHours(0, 0, 0, 0);
 
       const assignmentsToImport = importData.assignments.map(a => {
         const extractedDate = new Date(a.dueDate);
         
         // Calculate Module Week (1-8)
-        const diffTime = Math.abs(extractedDate.getTime() - termStart.getTime());
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        const weekNumber = Math.max(1, Math.min(8, Math.ceil(diffDays / 7)));
+        // Using Math.floor(days / 7) + 1 ensures Days 0-6 land in Module 1
+        const timeDiff = extractedDate.getTime() - termStart.getTime();
+        const diffDays = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+        const weekNumber = Math.max(1, Math.min(8, Math.floor(diffDays / 7) + 1));
 
         // Recalibrate to SNHU Thursday/Sunday snap
         const finalDate = new Date(termStart);
         const weekOffset = (weekNumber - 1) * 7;
+        
         // Snap: Day 3 (Thu) for Discussions, Day 6 (Sun) for others
         const dayOffset = a.type === 'discussion' ? 3 : 6; 
         
