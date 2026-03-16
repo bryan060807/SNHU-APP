@@ -3,28 +3,27 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
-// 1. We keep a local reference but DO NOT initialize yet.
-// This prevents the SDK from throwing "API Key must be set" on the initial page load.
-let genAIInstance: GoogleGenAI | null = null;
+// 1. Singleton instance to prevent multiple SDK initializations
+let genAIInstance: GoogleGenerativeAI | null = null;
 
 /**
  * Lazy Initialization Helper
  * Ensures the SDK is only instantiated when a user actually triggers an AI action.
+ * This effectively shields the browser from "Missing Key" errors on initial boot.
  */
 const getSDK = () => {
   if (genAIInstance) return genAIInstance;
 
   const VITE_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
-  if (!VITE_KEY || VITE_KEY.length < 10) {
-    console.warn("AI System: VITE_GEMINI_API_KEY is missing. AI features are offline.");
-    return null;
+  // If the key is missing, we stop here and throw a clean error for the UI to handle.
+  if (!VITE_KEY || VITE_KEY === 'undefined' || VITE_KEY.length < 10) {
+    throw new Error("AI CONFIG MISSING: VITE_GEMINI_API_KEY is not set in environment.");
   }
 
-  // Only now do we touch the Google SDK
-  genAIInstance = new GoogleGenAI(VITE_KEY);
+  genAIInstance = new GoogleGenerativeAI(VITE_KEY);
   return genAIInstance;
 };
 
@@ -32,10 +31,8 @@ const getSDK = () => {
  * AI-powered title improvement for the AssignmentList
  */
 export async function improveAssignmentTitle(title: string): Promise<string> {
-  const sdk = getSDK();
-  if (!sdk) return title;
-
   try {
+    const sdk = getSDK();
     const model = sdk.getGenerativeModel({ model: "gemini-1.5-flash" });
     const result = await model.generateContent(
       `Rephrase this SNHU assignment title to be professional and concise: "${title}". Return ONLY the new title text.`
@@ -51,11 +48,10 @@ export async function improveAssignmentTitle(title: string): Promise<string> {
  * Parses Syllabus text from PDFs/HTML into SNHU-formatted JSON
  */
 export async function parseSyllabus(text: string, startDate?: string) {
-  const sdk = getSDK();
-  if (!sdk) throw new Error("AI Service not configured.");
-
   try {
+    const sdk = getSDK();
     const model = sdk.getGenerativeModel({ model: "gemini-1.5-flash" });
+    
     const prompt = `Extract course information and assignments from this SNHU syllabus text:
     
     ${text}
@@ -79,10 +75,14 @@ export async function parseSyllabus(text: string, startDate?: string) {
       },
     });
 
-    return JSON.parse(result.response.text() || "{}");
-  } catch (error) {
+    const responseText = result.response.text();
+    return JSON.parse(responseText || "{}");
+  } catch (error: any) {
     console.error("Gemini Syllabus Parsing Error:", error);
-    throw new Error("Failed to parse syllabus. Try pasting the text manually.");
+    // Rethrow with a clean message for the UI Toast
+    throw new Error(error.message.includes("API_KEY") 
+      ? "AI System Offline: Missing Gemini API Key in Vercel." 
+      : "Neural Link failed to structure syllabus data.");
   }
 }
 
@@ -90,14 +90,10 @@ export async function parseSyllabus(text: string, startDate?: string) {
  * Chat logic for the SNHU Academic Compass AI Buddy
  */
 export async function getStudyAdvice(prompt: string, history: { role: 'user' | 'assistant', content: string }[] = []) {
-  const sdk = getSDK();
-  if (!sdk) return { text: "AI Buddy is currently offline. Please configure your API key.", functionCalls: undefined };
-
   try {
+    const sdk = getSDK();
     const model = sdk.getGenerativeModel({ model: "gemini-1.5-flash" });
     
-    // The instructions now come via the prompt injection in AIChat.tsx 
-    // to include the Long-Term Memory and Persona settings.
     const systemInstruction = `You are the SNHU Academic Compass AI. 
     SNHU Rules: Thu 11:59 PM (Initial Post), Sun 11:59 PM (Assignments). 
     Tone: Industrial, focused, supportive. No fluff. Use technical language when appropriate.`;
@@ -118,23 +114,21 @@ export async function getStudyAdvice(prompt: string, history: { role: 'user' | '
       text: result.response.text(),
       functionCalls: undefined 
     };
-  } catch (error) {
+  } catch (error: any) {
     console.error("Gemini Chat Error:", error);
     return {
-      text: "Neural link interrupted. Check your system configuration.",
+      text: "Neural link interrupted. System configuration required.",
       functionCalls: undefined
     };
   }
 }
 
 /**
- * Generates speech for 'Talk Mode' using Gemini TTS
+ * Talk Mode: TTS using Gemini natively
  */
 export async function generateSpeech(text: string, voiceName: string = 'Kore') {
-  const sdk = getSDK();
-  if (!sdk) return null;
-
   try {
+    const sdk = getSDK();
     const model = sdk.getGenerativeModel({ model: "gemini-1.5-flash" }); 
     const result = await model.generateContent({
       contents: [{ parts: [{ text }] }],
