@@ -33,8 +33,8 @@ const getSDK = () => {
 export async function improveAssignmentTitle(title: string): Promise<string> {
   try {
     const sdk = getSDK();
-    // Switched to gemini-1.5-flash-latest for stable API resolution
-    const model = sdk.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
+    // Switched to gemini-3-flash based on 2026 project quota
+    const model = sdk.getGenerativeModel({ model: "gemini-3-flash" });
     const result = await model.generateContent(
       `Rephrase this SNHU assignment title to be professional and concise: "${title}". Return ONLY the new title text.`
     );
@@ -51,8 +51,8 @@ export async function improveAssignmentTitle(title: string): Promise<string> {
 export async function parseSyllabus(text: string, startDate?: string) {
   try {
     const sdk = getSDK();
-    // Switched to gemini-1.5-flash-latest for stable API resolution
-    const model = sdk.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
+    // Switched to gemini-3-flash based on 2026 project quota
+    const model = sdk.getGenerativeModel({ model: "gemini-3-flash" });
     
     const prompt = `Extract course information and assignments from this SNHU syllabus text:
     
@@ -82,8 +82,8 @@ export async function parseSyllabus(text: string, startDate?: string) {
   } catch (error: any) {
     console.error("Gemini Syllabus Parsing Error:", error);
     // Rethrow with a clean message for the UI Toast
-    throw new Error(error.message.includes("API_KEY") 
-      ? "AI System Offline: Missing Gemini API Key in Vercel." 
+    throw new Error(error.message.includes("404") 
+      ? "Industrial Link Error: Gemini 3 Flash model not found. Check project provisioning." 
       : "Neural Link failed to structure syllabus data.");
   }
 }
@@ -94,8 +94,8 @@ export async function parseSyllabus(text: string, startDate?: string) {
 export async function getStudyAdvice(prompt: string, history: { role: 'user' | 'assistant', content: string }[] = []) {
   try {
     const sdk = getSDK();
-    // Switched to gemini-1.5-flash-latest for stable API resolution
-    const model = sdk.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
+    // Switched to gemini-3-flash based on 2026 project quota
+    const model = sdk.getGenerativeModel({ model: "gemini-3-flash" });
     
     const systemInstruction = `You are the SNHU Academic Compass AI. 
     SNHU Rules: Thu 11:59 PM (Initial Post), Sun 11:59 PM (Assignments). 
@@ -132,8 +132,8 @@ export async function getStudyAdvice(prompt: string, history: { role: 'user' | '
 export async function generateSpeech(text: string, voiceName: string = 'Kore') {
   try {
     const sdk = getSDK();
-    // Switched to gemini-1.5-flash-latest for stable API resolution
-    const model = sdk.getGenerativeModel({ model: "gemini-1.5-flash-latest" }); 
+    // Switched to gemini-3-flash based on 2026 project quota
+    const model = sdk.getGenerativeModel({ model: "gemini-3-flash" }); 
     const result = await model.generateContent({
       contents: [{ parts: [{ text }] }],
       generationConfig: {
