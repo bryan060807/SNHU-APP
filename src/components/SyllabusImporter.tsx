@@ -3,16 +3,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Upload, Loader2, CheckCircle2, AlertCircle, X, Zap } from 'lucide-react';
 import { parseSyllabus } from '../services/geminiService';
 import { SyllabusData } from '../types';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import * as pdfjs from 'pdfjs-dist';
-
-// Set up PDF.js worker
-pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
 
 interface SyllabusImporterProps {
   onImport: (data: SyllabusData) => void;
@@ -28,26 +25,43 @@ export function SyllabusImporter({ onImport, onClose }: SyllabusImporterProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   /**
+   * WORKER INITIALIZATION
+   * Uses unpkg for stable module loading. 
+   * This fixes the "failed to load dynamically imported module" error.
+   */
+  useEffect(() => {
+    pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+  }, []);
+
+  /**
    * CORE EXTRACTION: PDF TO TEXT
    * Iterates through PDF layers to extract raw academic data.
    */
   const extractTextFromPDF = async (file: File): Promise<string> => {
-    const arrayBuffer = await file.arrayBuffer();
-    const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
-    let fullText = '';
-    
-    for (let i = 1; i <= pdf.numPages; i++) {
-      const page = await pdf.getPage(i);
-      const textContent = await page.getTextContent();
-      const pageText = textContent.items.map((item: any) => item.str).join(' ');
-      fullText += pageText + '\n';
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
+      let fullText = '';
+      
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const textContent = await page.getTextContent();
+        const pageText = textContent.items.map((item: any) => item.str).join(' ');
+        fullText += pageText + '\n';
+      }
+      return fullText;
+    } catch (err: any) {
+      console.error("PDF Read Error:", err);
+      throw new Error("Failed to read PDF rebar. Try printing to PDF again or pasting text.");
     }
-    return fullText;
   };
 
   const handleFile = async (file: File) => {
+    // Explicitly supporting HTML for SNHU Brightspace pages
     const supportedTypes = ['application/pdf', 'text/plain', 'text/html'];
-    if (!supportedTypes.includes(file.type) && !file.name.endsWith('.html')) {
+    const isHtml = file.type === 'text/html' || file.name.endsWith('.html') || file.name.endsWith('.htm');
+
+    if (!supportedTypes.includes(file.type) && !isHtml) {
       setError('Unsupported file type. Use PDF, Text, or HTML.');
       return;
     }
@@ -60,14 +74,15 @@ export function SyllabusImporter({ onImport, onClose }: SyllabusImporterProps) {
       if (file.type === 'application/pdf') {
         text = await extractTextFromPDF(file);
       } else {
+        // Reads raw HTML or Text
         text = await file.text();
       }
 
       if (!text.trim()) throw new Error('No text found in file.');
 
       /**
-       * AI SYNC: Invokes the Gemini service to structure the syllabus rebar.
-       * If this fails with an API Key error, verify VITE_GEMINI_API_KEY in Vercel.
+       * AI SYNC: Invokes Gemini to structure the data.
+       * HTML files are sent raw; Gemini handles the tag stripping.
        */
       const data = await parseSyllabus(text, startDate || undefined);
       onImport(data);
@@ -127,7 +142,7 @@ export function SyllabusImporter({ onImport, onClose }: SyllabusImporterProps) {
               </div>
               <div>
                 <h2 className="text-3xl font-black text-slate-900 dark:text-white tracking-tighter italic uppercase">Neural Syllabus Sync</h2>
-                <p className="text-slate-500 font-bold uppercase tracking-widest text-[10px] mt-1">High-Voltage Academic Extraction</p>
+                <p className="text-slate-500 font-bold uppercase tracking-widest text-[10px] mt-1">Industrial Academic Extraction</p>
               </div>
             </div>
             <button onClick={onClose} className="p-2 text-slate-400 hover:text-rose-500 transition-colors">
@@ -167,11 +182,11 @@ export function SyllabusImporter({ onImport, onClose }: SyllabusImporterProps) {
                     dragActive ? "border-blue-500 bg-blue-50 dark:bg-blue-900/10" : "border-slate-100 dark:border-slate-800 hover:border-blue-500/50 hover:bg-slate-50"
                   )}
                 >
-                  <input type="file" ref={fileInputRef} onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])} className="hidden" accept=".pdf,.txt,.html" />
+                  <input type="file" ref={fileInputRef} onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])} className="hidden" accept=".pdf,.txt,.html,.htm" />
                   {isProcessing ? <Loader2 size={40} className="text-blue-600 animate-spin" /> : <Upload size={40} className="text-slate-300 dark:text-slate-700" />}
                   <div className="text-center">
-                    <p className="text-sm font-black dark:text-white uppercase tracking-tighter">{isProcessing ? 'Extracting Rebar...' : 'Inject Syllabus PDF'}</p>
-                    <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">Maximum Voltage Parsing</p>
+                    <p className="text-sm font-black dark:text-white uppercase tracking-tighter">{isProcessing ? 'Extracting Rebar...' : 'Inject HTML or PDF'}</p>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">High-Voltage Parsing</p>
                   </div>
                 </div>
               </div>
