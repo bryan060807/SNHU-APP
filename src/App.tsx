@@ -29,23 +29,20 @@ export default function App() {
   const [dataLoading, setDataLoading] = useState(false);
 
   /**
-   * THEME SYNC: Captures the profile theme and locks it into 
-   * localStorage for the index.html flash-prevention script.
+   * THEME PERSISTENCE
+   * Bridges the Supabase profile theme with the DOM.
    */
   useEffect(() => {
     if (profile?.theme) {
-      const theme = profile.theme;
-      localStorage.setItem('theme', theme);
-      
-      if (theme === 'dark') {
-        document.documentElement.classList.add('dark');
-      } else {
-        document.documentElement.classList.remove('dark');
-      }
+      localStorage.setItem('theme', profile.theme);
+      document.documentElement.classList.toggle('dark', profile.theme === 'dark');
     }
   }, [profile?.theme]);
 
-  // Personalized Birthday Celebration Logic
+  /**
+   * CELEBRATION PROTOCOL
+   * Triggers industrial-blue confetti on user's birthday.
+   */
   useEffect(() => {
     if (profile?.birthday) {
       const parts = profile.birthday.split('-');
@@ -67,6 +64,10 @@ export default function App() {
     }
   }, [profile, showToast]);
 
+  /**
+   * DATA STREAM: FETCH
+   * Centralized retrieval for courses and assignments.
+   */
   const fetchData = useCallback(async () => {
     if (!user) return;
     setDataLoading(true);
@@ -101,9 +102,12 @@ export default function App() {
     }
   }, [user, showToast]);
 
+  /**
+   * REAL-TIME SUBSCRIPTION
+   * Listens for Postgres changes to keep the Neural Link live.
+   */
   useEffect(() => {
     fetchData();
-
     const channel = supabase.channel('schema-db-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'assignments' }, fetchData)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'courses' }, fetchData)
@@ -114,7 +118,10 @@ export default function App() {
     };
   }, [fetchData]);
 
-  // Mutation Handlers
+  /**
+   * DATABASE MUTATIONS (Centralized)
+   * These methods are passed to sub-components to prevent "API Key" crashes.
+   */
   const addCourse = async (course: Omit<Course, 'id'>) => {
     const { data, error } = await supabase
       .from('courses')
@@ -133,7 +140,7 @@ export default function App() {
     }
     
     fetchData();
-    return data;
+    return data; 
   };
 
   const deleteCourse = async (id: string) => {
@@ -172,7 +179,10 @@ export default function App() {
 
   const updateAssignmentStatus = async (id: string, status: Assignment['status']) => {
     const { error } = await supabase.from('assignments')
-      .update({ status, completed_at: status === 'completed' ? new Date().toISOString() : null })
+      .update({ 
+        status, 
+        completed_at: status === 'completed' ? new Date().toISOString() : null 
+      })
       .eq('id', id);
     
     if (error) showToast('Error', 'Handshake failed.', 'error');
@@ -206,8 +216,8 @@ export default function App() {
     return (
       <div className="h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-2xl animate-spin" />
-          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-blue-600 animate-pulse">Initializing Mainframe...</p>
+          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-2xl animate-spin shadow-2xl shadow-blue-600/20" />
+          <p className="text-[10px] font-black uppercase tracking-[0.4em] text-blue-600 animate-pulse">Initializing Mainframe...</p>
         </div>
       </div>
     );
@@ -222,7 +232,12 @@ export default function App() {
       <main className="flex-1 overflow-y-auto p-4 md:p-8 pb-24 lg:pb-8">
         <div className="max-w-6xl mx-auto">
           {currentView === 'dashboard' && (
-            <Dashboard courses={courses} assignments={assignments} updateStatus={updateAssignmentStatus} setView={setCurrentView} />
+            <Dashboard 
+              courses={courses} 
+              assignments={assignments} 
+              updateStatus={updateAssignmentStatus} 
+              setView={setCurrentView} 
+            />
           )}
           {currentView === 'assignments' && (
             <AssignmentList 
@@ -244,7 +259,11 @@ export default function App() {
           )}
           {currentView === 'timer' && <StudyTimer courses={courses} />}
           {currentView === 'ai' && (
-            <AIChat assignments={assignments} courses={courses} updateAssignmentStatus={updateAssignmentStatus} />
+            <AIChat 
+              assignments={assignments} 
+              courses={courses} 
+              updateAssignmentStatus={updateAssignmentStatus} 
+            />
           )}
           {currentView === 'wellness' && <Wellness />}
           {currentView === 'integrations' && <IntegrationsHub />}
