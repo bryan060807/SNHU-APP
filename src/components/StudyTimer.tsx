@@ -24,6 +24,11 @@ export function StudyTimer({ courses }: StudyTimerProps) {
   
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
+  // 1. Initial Notification State Sync
+  const [notifPermission, setNotifPermission] = useState<NotificationPermission>(
+    typeof Notification !== 'undefined' ? Notification.permission : 'default'
+  );
+
   useEffect(() => {
     if (isActive && timeLeft > 0) {
       timerRef.current = setInterval(() => {
@@ -53,6 +58,34 @@ export function StudyTimer({ courses }: StudyTimerProps) {
     } else {
       setMode('study');
       setTimeLeft(25 * 60);
+    }
+  };
+
+  /**
+   * REBAR FIX: requestPermission logic
+   * This clears the ReferenceError by using the imported requestNotificationPermission properly.
+   */
+  const handleRequestPermission = async () => {
+    if (!('Notification' in window)) {
+      showToast('Hardware Error', 'System notifications not supported on this terminal.', 'error');
+      return;
+    }
+
+    try {
+      showToast('Relay Request', 'Initializing notification handshake...', 'info');
+      const permission = await requestNotificationPermission();
+      setNotifPermission(permission);
+      
+      if (permission === 'granted') {
+        sendNotification('SNHU Compass: Relay Active', {
+          body: 'Focus Engine alerts are now synchronized.',
+        }, showToast);
+      } else if (permission === 'denied') {
+        showToast('Link Blocked', 'Permissions denied. Check browser settings.', 'error');
+      }
+    } catch (error) {
+      console.error('Notification Error:', error);
+      showToast('Relay Failure', 'Connection to notification system failed.', 'error');
     }
   };
 
@@ -158,8 +191,13 @@ export function StudyTimer({ courses }: StudyTimerProps) {
             {isActive ? <Pause size={32} className="group-hover:scale-110 transition-transform" fill="currentColor" /> : <Play size={32} className="ml-1 group-hover:scale-110 transition-transform" fill="currentColor" />}
           </button>
           <button 
-            onClick={requestPermission}
-            className="w-14 h-14 rounded-2xl border-2 border-slate-100 dark:border-slate-800 flex items-center justify-center text-slate-400 dark:text-slate-500 hover:text-blue-600 hover:border-blue-600 transition-all active:scale-90"
+            onClick={handleRequestPermission}
+            className={cn(
+              "w-14 h-14 rounded-2xl border-2 flex items-center justify-center transition-all active:scale-90",
+              notifPermission === 'granted' 
+                ? "border-emerald-500 text-emerald-500" 
+                : "border-slate-100 dark:border-slate-800 text-slate-400 dark:text-slate-500 hover:text-blue-600 hover:border-blue-600"
+            )}
           >
             <Bell size={22} />
           </button>
