@@ -33,8 +33,8 @@ const getSDK = () => {
 export async function improveAssignmentTitle(title: string): Promise<string> {
   try {
     const sdk = getSDK();
-    // Migrated to gemini-3.1-flash-lite following the March 2026 decommission
-    const model = sdk.getGenerativeModel({ model: "gemini-3.1-flash-lite" });
+    // Reverted to gemini-2.5-flash for maximum stability and path resolution
+    const model = sdk.getGenerativeModel({ model: "gemini-2.5-flash" });
     const result = await model.generateContent(
       `Rephrase this SNHU assignment title to be professional and concise: "${title}". Return ONLY the new title text.`
     );
@@ -51,8 +51,8 @@ export async function improveAssignmentTitle(title: string): Promise<string> {
 export async function parseSyllabus(text: string, startDate?: string) {
   try {
     const sdk = getSDK();
-    // Migrated to gemini-3.1-flash-lite following the March 2026 decommission
-    const model = sdk.getGenerativeModel({ model: "gemini-3.1-flash-lite" });
+    // Reverted to gemini-2.5-flash for maximum stability and path resolution
+    const model = sdk.getGenerativeModel({ model: "gemini-2.5-flash" });
     
     const prompt = `Extract course information and assignments from this SNHU syllabus text:
     
@@ -81,9 +81,9 @@ export async function parseSyllabus(text: string, startDate?: string) {
     return JSON.parse(responseText || "{}");
   } catch (error: any) {
     console.error("Gemini Syllabus Parsing Error:", error);
-    // Precise 404 message for the March migration 
+    // Precise error message for the 2.5 stable fallback
     throw new Error(error.message.includes("404") 
-      ? "Industrial Link Error: Gemini 3.1 Migration Required. Update model identifiers." 
+      ? "Industrial Link Error: Stable Model (2.5) not found. Check Google Cloud Provisioning." 
       : "Neural Link failed to structure syllabus data.");
   }
 }
@@ -94,8 +94,7 @@ export async function parseSyllabus(text: string, startDate?: string) {
 export async function getStudyAdvice(prompt: string, history: { role: 'user' | 'assistant', content: string }[] = []) {
   try {
     const sdk = getSDK();
-    // Migrated to gemini-3.1-flash-lite following the March 2026 decommission
-    const model = sdk.getGenerativeModel({ model: "gemini-3.1-flash-lite" });
+    const model = sdk.getGenerativeModel({ model: "gemini-2.5-flash" });
     
     const systemInstruction = `You are the SNHU Academic Compass AI. 
     SNHU Rules: Thu 11:59 PM (Initial Post), Sun 11:59 PM (Assignments). 
@@ -120,7 +119,7 @@ export async function getStudyAdvice(prompt: string, history: { role: 'user' | '
   } catch (error: any) {
     console.error("Gemini Chat Error:", error);
     return {
-      text: "Neural link interrupted. 3.1 Migration Check Required.",
+      text: "Neural link interrupted. Reverting to local processing mode.",
       functionCalls: undefined
     };
   }
@@ -132,8 +131,7 @@ export async function getStudyAdvice(prompt: string, history: { role: 'user' | '
 export async function generateSpeech(text: string, voiceName: string = 'Kore') {
   try {
     const sdk = getSDK();
-    // Migrated to gemini-3.1-flash-lite following the March 2026 decommission
-    const model = sdk.getGenerativeModel({ model: "gemini-3.1-flash-lite" }); 
+    const model = sdk.getGenerativeModel({ model: "gemini-2.5-flash" }); 
     const result = await model.generateContent({
       contents: [{ parts: [{ text }] }],
       generationConfig: {
