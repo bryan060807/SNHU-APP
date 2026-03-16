@@ -4,8 +4,7 @@
  */
 
 import React, { useState, useRef, useEffect } from 'react';
-// Added Zap back to the import list to fix the ReferenceError
-import { Upload, Loader2, CheckCircle2, AlertCircle, X, Zap } from 'lucide-react';
+import { Upload, Loader2, CheckCircle2, AlertCircle, X } from 'lucide-react';
 import { parseSyllabus } from '../services/geminiService';
 import { SyllabusData } from '../types';
 import { cn } from '../lib/utils';
@@ -74,7 +73,7 @@ export function SyllabusImporter({ onImport, onClose }: SyllabusImporterProps) {
       onImport(data);
     } catch (err: any) {
       console.error("Syllabus Parse Error:", err);
-      setError(err.message || 'AI parsing failed. Try pasting the text instead.');
+      setError(err.message || 'AI parsing failed.');
     } finally {
       setIsProcessing(false);
     }
@@ -103,7 +102,7 @@ export function SyllabusImporter({ onImport, onClose }: SyllabusImporterProps) {
       const data = await parseSyllabus(pastedText, startDate || undefined);
       onImport(data);
     } catch (err: any) {
-      setError('Extraction failed. Ensure the text includes assignments.');
+      setError('Extraction failed.');
     } finally {
       setIsProcessing(false);
     }
@@ -120,7 +119,8 @@ export function SyllabusImporter({ onImport, onClose }: SyllabusImporterProps) {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="w-14 h-14 rounded-2xl bg-blue-600 flex items-center justify-center text-white shadow-xl shadow-blue-600/20">
-                <Zap size={28} fill="currentColor" />
+                {/* Zap removed - Replaced with generic File icon logic or empty div */}
+                <div className="w-6 h-6 border-4 border-white/20 border-t-white rounded-full animate-pulse" />
               </div>
               <div>
                 <h2 className="text-3xl font-black text-slate-900 dark:text-white tracking-tighter italic uppercase">Neural Syllabus Sync</h2>
@@ -132,17 +132,10 @@ export function SyllabusImporter({ onImport, onClose }: SyllabusImporterProps) {
             </button>
           </div>
 
-          {error && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-4 bg-rose-50 dark:bg-rose-900/20 border-2 border-rose-100 dark:border-rose-900/30 rounded-2xl flex items-center gap-3 text-rose-600 dark:text-rose-400 text-xs font-black uppercase tracking-widest">
-              <AlertCircle size={20} />
-              {error}
-            </motion.div>
-          )}
-
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="space-y-6">
                <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Baseline (Term Start Date)</label>
+                <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Baseline</label>
                 <input 
                   type="date"
                   value={startDate}
@@ -167,8 +160,7 @@ export function SyllabusImporter({ onImport, onClose }: SyllabusImporterProps) {
                   <input type="file" ref={fileInputRef} onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])} className="hidden" accept=".pdf,.txt,.html,.htm" />
                   {isProcessing ? <Loader2 size={40} className="text-blue-600 animate-spin" /> : <Upload size={40} className="text-slate-300 dark:text-slate-700" />}
                   <div className="text-center">
-                    <p className="text-sm font-black dark:text-white uppercase tracking-tighter">{isProcessing ? 'Extracting Rebar...' : 'Inject HTML or PDF'}</p>
-                    <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">High-Voltage Parsing</p>
+                    <p className="text-sm font-black dark:text-white uppercase tracking-tighter">{isProcessing ? 'Extracting...' : 'Inject HTML or PDF'}</p>
                   </div>
                 </div>
               </div>
