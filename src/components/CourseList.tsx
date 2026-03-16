@@ -11,8 +11,7 @@ import {
   BookOpen, 
   FileText, 
   Loader2, 
-  Sparkles, 
-  CheckCircle2 
+  Sparkles 
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
@@ -83,20 +82,13 @@ export function CourseList({ courses, addCourse, deleteCourse, bulkAddAssignment
     setImportData(data);
     setNewCode(data.courseCode);
     setNewName(data.courseName);
-    setNewTermStart(data.termStartDate);
+    setNewTermStart(data.termStartDate || '');
     setIsImporting(false);
     setIsAdding(true);
   };
 
-  /**
-   * 7-3-1 Engagement Protocol: UTC-Zero Calibration
-   * Snaps extracted assignments to SNHU Industrial Grid
-   */
   const handleConfirmImport = async () => {
-    if (!newCode || !newName || !importData || !newTermStart) {
-      showToast('Data Missing', 'Please ensure Term Start Date is set for 7-3-1 sync.', 'error');
-      return;
-    }
+    if (!newCode || !newName || !importData) return;
     setIsLoading(true);
     
     try {
@@ -104,59 +96,28 @@ export function CourseList({ courses, addCourse, deleteCourse, bulkAddAssignment
         code: newCode,
         name: newName,
         color: newColor,
-        termStartDate: newTermStart,
+        termStartDate: newTermStart || undefined,
       });
 
       if (!courseData?.id) throw new Error("Course initialization failed.");
 
-      const termStart = new Date(newTermStart);
-      
-      const assignmentsToImport = importData.assignments.map(a => {
-        const extractedDate = new Date(a.dueDate);
-        
-        // Zero-G Date Math: Treat all dates as pure UTC Calendar Days
-        const startUTC = Date.UTC(termStart.getFullYear(), termStart.getMonth(), termStart.getDate());
-        const extractedUTC = Date.UTC(extractedDate.getFullYear(), extractedDate.getMonth(), extractedDate.getDate());
-        
-        // Calculate raw day difference
-        const diffDays = Math.floor((extractedUTC - startUTC) / (1000 * 60 * 60 * 24));
-        
-        // Snap Week 1 (Day 0-6), Week 2 (Day 7-13), etc.
-        let weekNumber = Math.floor(diffDays / 7) + 1;
-        
-        // Final Safety Rails
-        if (weekNumber < 1) weekNumber = 1;
-        if (weekNumber > 8) weekNumber = 8;
-
-        // Apply SNHU 7-3-1 grid offsets
-        const finalDate = new Date(termStart);
-        const weekOffset = (weekNumber - 1) * 7;
-        const dayOffset = a.type === 'discussion' ? 3 : 6; // Thu or Sun
-        
-        finalDate.setDate(termStart.getDate() + weekOffset + dayOffset);
-        finalDate.setHours(23, 59, 0, 0);
-
-        const displayTitle = a.title.toLowerCase().includes('mod') 
-          ? a.title 
-          : `Module ${weekNumber}: ${a.title}`;
-
-        return {
-          course_id: courseData.id,
-          title: displayTitle,
-          due_date: finalDate.toISOString(),
-          type: a.type,
-          status: 'todo',
-          estimated_hours: a.estimatedHours || (a.type === 'discussion' ? 2 : 4)
-        };
-      });
+      // Direct Import: No date snapping logic
+      const assignmentsToImport = importData.assignments.map(a => ({
+        course_id: courseData.id,
+        title: a.title,
+        due_date: a.dueDate,
+        type: a.type,
+        status: 'todo',
+        estimated_hours: a.estimatedHours || 3
+      }));
 
       await bulkAddAssignments(assignmentsToImport);
       
-      showToast('Sync Complete', `7-3-1 Protocol active. ${assignmentsToImport.length} tasks snapped to grid.`, 'success');
+      showToast('Sync Complete', `Imported ${assignmentsToImport.length} tasks exactly as parsed.`, 'success');
       resetForm();
     } catch (error: any) {
-      console.error("Import Crash:", error);
-      showToast('Mainframe Error', error.message || 'Failed to import syllabus.', 'error');
+      console.error("Import Error:", error);
+      showToast('Mainframe Error', 'Failed to import syllabus assignments.', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -211,7 +172,7 @@ export function CourseList({ courses, addCourse, deleteCourse, bulkAddAssignment
                     <Sparkles size={16} /> Syllabus Analysis Complete
                   </h3>
                   <p className="text-xs text-blue-700 dark:text-blue-400 mt-1 font-medium italic">
-                    7-3-1 Protocol Applied: Snapping assignments to Week 1 Baseline.
+                    Raw extraction mode: {importData.assignments.length} assignments detected.
                   </p>
                 </div>
               )}
@@ -234,15 +195,6 @@ export function CourseList({ courses, addCourse, deleteCourse, bulkAddAssignment
                     onChange={(e) => setNewName(e.target.value)}
                     className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-800 rounded-2xl dark:text-white font-bold outline-none focus:border-blue-500 transition-all"
                     placeholder="e.g. US History II"
-                  />
-                </div>
-                <div className="space-y-1 md:col-span-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Baseline (Term Start Date)</label>
-                  <input 
-                    type="date"
-                    value={newTermStart}
-                    onChange={(e) => setNewTermStart(e.target.value)}
-                    className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-800 rounded-2xl dark:text-white font-bold outline-none focus:border-blue-500 transition-all"
                   />
                 </div>
               </div>
@@ -269,7 +221,7 @@ export function CourseList({ courses, addCourse, deleteCourse, bulkAddAssignment
                   disabled={isLoading}
                   className="bg-blue-600 text-white px-10 py-4 rounded-2xl font-black uppercase text-xs tracking-widest flex items-center gap-3 hover:bg-blue-700 transition-all disabled:opacity-50 shadow-xl shadow-blue-600/20"
                 >
-                  {isLoading ? <Loader2 className="animate-spin" size={18} /> : (importData ? 'Confirm Extraction' : 'Initialize Course')}
+                  {isLoading ? <Loader2 className="animate-spin" size={18} /> : (importData ? 'Confirm Import' : 'Initialize Course')}
                 </button>
               </div>
             </form>
@@ -291,7 +243,7 @@ export function CourseList({ courses, addCourse, deleteCourse, bulkAddAssignment
             <h4 className="text-2xl font-black text-slate-900 dark:text-white leading-tight mb-8 tracking-tighter">{course.name}</h4>
             
             <div className="flex items-center justify-between pt-6 border-t border-slate-50 dark:border-slate-800">
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">SNHU Term 2026</span>
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">SNHU Active Term</span>
               <button 
                 onClick={() => deleteCourse(course.id)}
                 className="p-3 text-slate-300 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-xl transition-all opacity-0 group-hover:opacity-100"

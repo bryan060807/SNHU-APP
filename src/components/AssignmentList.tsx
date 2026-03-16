@@ -22,7 +22,7 @@ import {
   Loader2, 
   X 
 } from 'lucide-react';
-import { format, addDays, startOfWeek, setHours, setMinutes, isBefore } from 'date-fns';
+import { format, addDays, startOfWeek, setHours, setMinutes, isBefore, parseISO } from 'date-fns';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { improveAssignmentTitle } from '../services/geminiService';
@@ -76,7 +76,7 @@ export function AssignmentList({ courses, assignments, addAssignment, updateAssi
 
   /**
    * RECALIBRATED: handleQuickPick
-   * Uses normalized Term Start to prevent Week offsets
+   * Snaps manual deployments to the Term Start grid
    */
   const handleQuickPick = (pickId: string) => {
     const pick = QUICK_PICKS.find(p => p.id === pickId);
@@ -86,11 +86,10 @@ export function AssignmentList({ courses, assignments, addAssignment, updateAssi
     let dueDate = new Date();
 
     if (course?.termStartDate) {
-      // Normalize to midnight UTC to match CourseList protocol
+      // Logic Sync: Match the 0-hour UTC baseline from CourseList
       const termStart = new Date(course.termStartDate);
       termStart.setHours(0, 0, 0, 0);
 
-      // Week 1 = selectedModule 1 = 0 days offset
       const weekOffset = (selectedModule - 1) * 7;
       const dayOffset = pick.day === 'Thursday' ? 3 : 6; 
       
@@ -102,6 +101,7 @@ export function AssignmentList({ courses, assignments, addAssignment, updateAssi
       dueDate = addDays(startOfCurrentWeek, dayOffset);
     }
 
+    // Industrial Standard: 11:59 PM
     dueDate = setHours(setMinutes(dueDate, 59), 23);
 
     setNewTitle(`Module ${selectedModule}: ${pick.label}`);
@@ -114,6 +114,7 @@ export function AssignmentList({ courses, assignments, addAssignment, updateAssi
     e.preventDefault();
     if (!newTitle) return;
 
+    // Calibration: Ensure the ISO string reflects the local picker time correctly
     const payload = {
       title: newTitle,
       courseId: newCourse,
@@ -139,6 +140,7 @@ export function AssignmentList({ courses, assignments, addAssignment, updateAssi
     setNewDate(format(new Date(), "yyyy-MM-dd'T'HH:mm"));
     setNewType('assignment');
     setNewHours(3);
+    setSelectedModule(1);
   };
 
   const filteredAssignments = assignments
@@ -309,74 +311,73 @@ export function AssignmentList({ courses, assignments, addAssignment, updateAssi
       </AnimatePresence>
 
       <div className="space-y-4">
-        {filteredAssignments.length > 0 ? (
-          filteredAssignments.map((a) => {
-            const course = courses.find(c => c.id === a.courseId);
-            const isDueSoon = isBefore(new Date(a.dueDate), addDays(new Date(), 2));
+        {filteredAssignments.map((a) => {
+          const course = courses.find(c => c.id === a.courseId);
+          const isDueSoon = isBefore(new Date(a.dueDate), addDays(new Date(), 2));
 
-            return (
-              <motion.div
-                key={a.id}
-                layout
-                className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border-2 border-slate-100 dark:border-slate-800 flex items-center justify-between group hover:border-blue-500/30 transition-all"
-              >
-                <div className="flex items-center gap-6">
-                  <button 
-                    onClick={() => updateStatus(a.id, a.status === 'completed' ? 'todo' : 'completed')}
-                    className={cn(
-                      "w-12 h-12 rounded-2xl border-2 flex items-center justify-center transition-all",
-                      a.status === 'completed' 
-                        ? "bg-emerald-500 border-emerald-500 text-white" 
-                        : "border-slate-200 dark:border-slate-700 text-transparent hover:border-emerald-500 hover:text-emerald-500"
-                    )}
-                  >
-                    <CheckCircle2 size={24} />
-                  </button>
-                  <div>
-                    <h4 className={cn("text-lg font-black tracking-tight", a.status === 'completed' ? "text-slate-400 line-through" : "text-slate-900 dark:text-white")}>
-                      {a.title}
-                    </h4>
-                    <div className="flex items-center gap-4 mt-1">
-                      <span className={cn("text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg border", course?.color || 'border-slate-200 text-slate-400')}>
-                        {course?.code || 'SNHU'}
-                      </span>
-                      <span className={cn(
-                        "text-xs font-bold flex items-center gap-1.5",
-                        isDueSoon && a.status !== 'completed' ? "text-rose-500" : "text-slate-400"
-                      )}>
-                        <Clock size={14} />
-                        {format(new Date(a.dueDate), 'MMM d, h:mm a')}
-                      </span>
-                    </div>
+          return (
+            <motion.div
+              key={a.id}
+              layout
+              className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border-2 border-slate-100 dark:border-slate-800 flex items-center justify-between group hover:border-blue-500/30 transition-all"
+            >
+              <div className="flex items-center gap-6">
+                <button 
+                  onClick={() => updateStatus(a.id, a.status === 'completed' ? 'todo' : 'completed')}
+                  className={cn(
+                    "w-12 h-12 rounded-2xl border-2 flex items-center justify-center transition-all",
+                    a.status === 'completed' 
+                      ? "bg-emerald-500 border-emerald-500 text-white" 
+                      : "border-slate-200 dark:border-slate-700 text-transparent hover:border-emerald-500 hover:text-emerald-500"
+                  )}
+                >
+                  <CheckCircle2 size={24} />
+                </button>
+                <div>
+                  <h4 className={cn("text-lg font-black tracking-tight", a.status === 'completed' ? "text-slate-400 line-through" : "text-slate-900 dark:text-white")}>
+                    {a.title}
+                  </h4>
+                  <div className="flex items-center gap-4 mt-1">
+                    <span className={cn("text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg border", course?.color || 'border-slate-200 text-slate-400')}>
+                      {course?.code || 'SNHU'}
+                    </span>
+                    <span className={cn(
+                      "text-xs font-bold flex items-center gap-1.5",
+                      isDueSoon && a.status !== 'completed' ? "text-rose-500" : "text-slate-400"
+                    )}>
+                      <Clock size={14} />
+                      {format(new Date(a.dueDate), 'MMM d, h:mm a')}
+                    </span>
                   </div>
                 </div>
+              </div>
 
-                <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all">
-                  <button 
-                    onClick={() => {
-                      setEditingAssignment(a);
-                      setNewTitle(a.title);
-                      setNewCourse(a.courseId);
-                      setNewDate(format(new Date(a.dueDate), "yyyy-MM-dd'T'HH:mm"));
-                      setNewType(a.type);
-                      setNewHours(a.estimatedHours || 3);
-                      setIsAdding(true);
-                    }}
-                    className="p-3 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-xl transition-all"
-                  >
-                    <Edit2 size={20} />
-                  </button>
-                  <button 
-                    onClick={() => deleteAssignment(a.id)}
-                    className="p-3 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-xl transition-all"
-                  >
-                    <Trash2 size={20} />
-                  </button>
-                </div>
-              </motion.div>
-            );
-          })
-        ) : (
+              <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all">
+                <button 
+                  onClick={() => {
+                    setEditingAssignment(a);
+                    setNewTitle(a.title);
+                    setNewCourse(a.courseId);
+                    setNewDate(format(parseISO(a.dueDate), "yyyy-MM-dd'T'HH:mm"));
+                    setNewType(a.type);
+                    setNewHours(a.estimatedHours || 3);
+                    setIsAdding(true);
+                  }}
+                  className="p-3 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-xl transition-all"
+                >
+                  <Edit2 size={20} />
+                </button>
+                <button 
+                  onClick={() => deleteAssignment(a.id)}
+                  className="p-3 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-xl transition-all"
+                >
+                  <Trash2 size={20} />
+                </button>
+              </div>
+            </motion.div>
+          );
+        })}
+        {filteredAssignments.length === 0 && (
           <div className="py-20 text-center bg-slate-50 dark:bg-slate-900/50 rounded-[3rem] border-2 border-dashed border-slate-200 dark:border-slate-800">
             <p className="text-slate-400 font-black uppercase tracking-widest italic">No matching assignments found in mainframe.</p>
           </div>
