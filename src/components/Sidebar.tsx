@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, BookOpen, CheckSquare, Timer, MessageSquare, GraduationCap, Bell, BellOff, Menu, X, Settings as SettingsIcon, LogOut, User, HeartPulse, Database } from 'lucide-react';
+import { LayoutDashboard, BookOpen, CheckSquare, Timer, MessageSquare, GraduationCap, Bell, BellOff, Menu, X, Settings as SettingsIcon, LogOut, User, HeartPulse } from 'lucide-react';
 import { View } from '../types';
 import { cn } from '../lib/utils';
 import { requestNotificationPermission, sendNotification } from '../lib/notifications';
@@ -53,6 +53,10 @@ export function Sidebar({ currentView, setView }: SidebarProps) {
     }
   };
 
+  /**
+   * REFINED MENU: 
+   * Mainframe/Integrations removed to focus on core logic modules.
+   */
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'assignments', label: 'Assignments', icon: CheckSquare },
@@ -60,7 +64,6 @@ export function Sidebar({ currentView, setView }: SidebarProps) {
     { id: 'timer', label: 'Focus Engine', icon: Timer },
     { id: 'ai', label: 'AI Buddy', icon: MessageSquare },
     { id: 'wellness', label: 'Biometrics', icon: HeartPulse },
-    { id: 'integrations', label: 'Mainframe', icon: Database },
     { id: 'settings', label: 'System Config', icon: SettingsIcon },
   ];
 

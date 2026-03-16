@@ -11,7 +11,7 @@ import {
   Calendar, 
   AlertCircle, 
   ArrowRight, 
-  Activity, // Swapped Zap for Activity
+  Activity, 
   Sparkles,
   BookOpen,
   Layout,
@@ -54,7 +54,7 @@ export function Dashboard({ courses, assignments, updateStatus, setView }: Dashb
     : 0;
 
   return (
-    <div className="space-y-10 pb-20">
+    <div className="space-y-10 pb-20 animate-in fade-in duration-700">
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
           <h2 className="text-4xl font-black text-slate-900 dark:text-white tracking-tighter italic uppercase">
@@ -67,56 +67,58 @@ export function Dashboard({ courses, assignments, updateStatus, setView }: Dashb
           </p>
         </div>
         
-        <div className="flex items-center gap-3 bg-white dark:bg-slate-900 px-6 py-3 rounded-[2rem] border-2 border-slate-100 dark:border-slate-800 shadow-xl shadow-blue-900/5">
+        <div className="flex items-center gap-3 bg-white dark:bg-slate-900 px-6 py-3 rounded-[2rem] border-2 border-slate-100 dark:border-slate-800 shadow-xl shadow-blue-900/5 transition-all hover:border-blue-500">
           <TrendingUp size={20} className="text-blue-600" />
           <span className="text-xs font-black uppercase tracking-widest text-slate-400">Week 1 / 8</span>
         </div>
       </header>
 
+      {/* Primary Metrics Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard 
           label="Course Load" 
           value={`${progressPercent}%`} 
           subValue="Term Completion"
-          icon={<Activity size={22} />} // Swapped from Zap
-          color="bg-blue-600 shadow-blue-600/20"
+          icon={<Activity size={22} />}
+          color="bg-blue-600 shadow-blue-600/30"
         />
         <StatCard 
           label="Time Debt" 
           value={`${totalHoursRemaining}h`} 
-          subValue="7-3-1 Engagement"
+          subValue="Active Commitment"
           icon={<Clock size={22} />}
-          color="bg-slate-900 dark:bg-blue-950 shadow-slate-900/20"
+          color="bg-slate-900 dark:bg-blue-950 shadow-slate-900/30"
         />
         <StatCard 
           label="Active Sync" 
           value={courses.length.toString()} 
           subValue="Course Modules"
           icon={<BookOpen size={22} />}
-          color="bg-emerald-600 shadow-emerald-600/20"
+          color="bg-emerald-600 shadow-emerald-600/30"
         />
         <StatCard 
-          label="Failures" 
+          label="System Faults" 
           value={overdue.length.toString()} 
           subValue="Overdue Tasks"
           icon={<AlertCircle size={22} />}
-          color={overdue.length > 0 ? "bg-rose-600 shadow-rose-600/20" : "bg-slate-400 shadow-slate-400/10"}
+          color={overdue.length > 0 ? "bg-rose-600 shadow-rose-600/40" : "bg-slate-400 shadow-slate-400/10"}
         />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
         <div className="lg:col-span-2 space-y-8">
-          <section className="bg-white dark:bg-slate-900 rounded-[3rem] border-2 border-slate-100 dark:border-slate-800 shadow-2xl shadow-blue-900/5 overflow-hidden">
-            <div className="p-8 md:p-10 border-b-2 border-slate-50 dark:border-slate-800 flex items-center justify-between">
+          {/* Deadline Logic Module */}
+          <section className="bg-white dark:bg-slate-900 rounded-[3rem] border-2 border-slate-100 dark:border-slate-800 shadow-2xl overflow-hidden transition-all hover:shadow-blue-900/10">
+            <div className="p-8 md:p-10 border-b-2 border-slate-50 dark:border-slate-800 flex items-center justify-between bg-slate-50/30 dark:bg-slate-800/20">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-2xl flex items-center justify-center border-2 border-blue-100 dark:border-blue-800">
+                <div className="w-12 h-12 bg-blue-600 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-blue-600/20">
                   <Calendar size={24} />
                 </div>
                 <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase italic tracking-tight">Active Deadlines</h3>
               </div>
               <button 
                 onClick={() => setView('assignments')}
-                className="p-3 bg-slate-50 dark:bg-slate-800 rounded-2xl text-slate-400 hover:text-blue-600 transition-all"
+                className="p-4 bg-white dark:bg-slate-800 rounded-2xl text-slate-400 hover:text-blue-600 border-2 border-transparent hover:border-blue-600 transition-all active:scale-95 shadow-sm"
               >
                 <ArrowRight size={20} />
               </button>
@@ -129,23 +131,32 @@ export function Dashboard({ courses, assignments, updateStatus, setView }: Dashb
                   const isDueSoon = isBefore(new Date(a.dueDate), addDays(today, 2));
                   
                   return (
-                    <div key={a.id} className="p-8 flex items-center justify-between group hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-all">
+                    <motion.div 
+                      key={a.id} 
+                      initial={{ x: -20, opacity: 0 }}
+                      animate={{ x: 0, opacity: 1 }}
+                      className="p-8 flex items-center justify-between group hover:bg-slate-50/80 dark:hover:bg-slate-800/80 transition-all cursor-default"
+                    >
                       <div className="flex items-center gap-6">
                         <button 
                           onClick={() => updateStatus(a.id, 'completed')}
-                          className="w-10 h-10 rounded-xl border-2 border-slate-200 dark:border-slate-700 flex items-center justify-center text-transparent hover:border-emerald-500 hover:text-emerald-500 transition-all"
+                          className="w-12 h-12 rounded-xl border-2 border-slate-200 dark:border-slate-700 flex items-center justify-center text-transparent hover:border-emerald-500 hover:text-emerald-500 transition-all group/check bg-white dark:bg-slate-900"
                         >
-                          <CheckCircle2 size={24} />
+                          <CheckCircle2 size={24} className="group-hover/check:scale-110 transition-transform" />
                         </button>
                         <div>
-                          <p className="text-lg font-black text-slate-900 dark:text-white tracking-tight">{a.title}</p>
+                          <p className="text-lg font-black text-slate-900 dark:text-white tracking-tight uppercase italic">{a.title}</p>
                           <div className="flex items-center gap-4 mt-2">
-                            <span className={cn("text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border-2", course?.color || 'bg-slate-500 border-slate-500', 'text-white')}>
+                            <span className={cn(
+                              "text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-lg border-2 shadow-sm", 
+                              course?.color || 'bg-slate-500 border-slate-500', 
+                              'text-white'
+                            )}>
                               {course?.code}
                             </span>
                             <span className={cn(
-                              "text-[11px] font-bold flex items-center gap-1.5 uppercase tracking-tighter",
-                              isDueSoon ? "text-rose-500" : "text-slate-400"
+                              "text-[11px] font-bold flex items-center gap-1.5 uppercase tracking-tighter italic",
+                              isDueSoon ? "text-rose-500 animate-pulse" : "text-slate-400"
                             )}>
                               <Clock size={14} />
                               {format(new Date(a.dueDate), 'MMM d, h:mm a')}
@@ -154,15 +165,15 @@ export function Dashboard({ courses, assignments, updateStatus, setView }: Dashb
                         </div>
                       </div>
                       <div className="hidden sm:block">
-                         <span className="text-[10px] font-black text-slate-300 dark:text-slate-600 uppercase tracking-[0.2em]">{a.type}</span>
+                         <span className="text-[10px] font-black text-slate-300 dark:text-slate-600 uppercase tracking-[0.3em] italic">{a.type}</span>
                       </div>
-                    </div>
+                    </motion.div>
                   );
                 })
               ) : (
-                <div className="p-20 text-center">
-                  <Layout size={64} className="mx-auto mb-6 text-slate-200 dark:text-slate-800" />
-                  <p className="font-black text-slate-400 uppercase tracking-widest italic">All Modules Cleared</p>
+                <div className="p-24 text-center">
+                  <Layout size={64} className="mx-auto mb-6 text-slate-200 dark:text-slate-800 opacity-50" />
+                  <p className="font-black text-slate-400 uppercase tracking-widest italic text-sm">Mainframe Cleared: No Pending Extraction</p>
                 </div>
               )}
             </div>
@@ -170,9 +181,12 @@ export function Dashboard({ courses, assignments, updateStatus, setView }: Dashb
         </div>
 
         <div className="space-y-8">
-          <section className="bg-white dark:bg-slate-900 p-10 rounded-[3rem] border-2 border-slate-100 dark:border-slate-800 shadow-2xl shadow-blue-900/5">
-            <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase italic tracking-tight mb-8">Course Saturation</h3>
-            <div className="space-y-8">
+          {/* Saturation Module */}
+          <section className="bg-white dark:bg-slate-900 p-10 rounded-[3rem] border-2 border-slate-100 dark:border-slate-800 shadow-2xl hover:shadow-blue-900/10 transition-all">
+            <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase italic tracking-tight mb-10 border-b-2 border-slate-50 dark:border-slate-800 pb-4">
+              Course Saturation
+            </h3>
+            <div className="space-y-10">
               {courses.map(course => {
                 const courseAssignments = assignments.filter(a => a.courseId === course.id);
                 const courseCompleted = courseAssignments.filter(a => a.status === 'completed').length;
@@ -181,16 +195,19 @@ export function Dashboard({ courses, assignments, updateStatus, setView }: Dashb
                   : 0;
 
                 return (
-                  <div key={course.id} className="space-y-3">
-                    <div className="flex justify-between text-[10px] font-black uppercase tracking-[0.1em]">
-                      <span className="text-slate-400">{course.code}</span>
-                      <span className="text-slate-900 dark:text-white">{coursePercent}%</span>
+                  <div key={course.id} className="space-y-4">
+                    <div className="flex justify-between text-[10px] font-black uppercase tracking-[0.2em]">
+                      <span className="text-slate-400 italic">{course.code}</span>
+                      <span className="text-slate-900 dark:text-white italic">{coursePercent}%</span>
                     </div>
-                    <div className="h-4 bg-slate-50 dark:bg-slate-800/50 rounded-full p-1 border border-slate-100 dark:border-slate-800">
+                    <div className="h-5 bg-slate-50 dark:bg-slate-800/50 rounded-full p-1 border-2 border-slate-100 dark:border-slate-800 shadow-inner">
                       <motion.div 
                         initial={{ width: 0 }}
                         animate={{ width: `${coursePercent}%` }}
-                        className={cn("h-full rounded-full transition-all duration-1000", course.color.replace('text-', 'bg-'))}
+                        className={cn(
+                          "h-full rounded-full transition-all duration-1000 shadow-[0_0_12px_rgba(37,99,235,0.2)]", 
+                          course.color.replace('text-', 'bg-')
+                        )}
                       />
                     </div>
                   </div>
@@ -199,12 +216,14 @@ export function Dashboard({ courses, assignments, updateStatus, setView }: Dashb
             </div>
           </section>
 
-          <div className="bg-slate-900 dark:bg-blue-950 p-8 rounded-[2.5rem] border-2 border-slate-800 shadow-2xl">
-            <h4 className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+          {/* System Advisory */}
+          <div className="bg-slate-900 dark:bg-blue-950 p-8 rounded-[2.5rem] border-2 border-slate-800 shadow-2xl relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-blue-600/10 rounded-full blur-3xl -mr-16 -mt-16 group-hover:bg-blue-600/20 transition-all" />
+            <h4 className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-4 flex items-center gap-2">
               <Sparkles size={16} /> System Advisory
             </h4>
-            <p className="text-xs text-slate-300 leading-relaxed font-bold italic uppercase tracking-tighter">
-              Thursday initial posts are critical for peer response compliance. Complete Discussion posts by 21:00 to avoid late-term oxidation.
+            <p className="text-xs text-slate-300 leading-relaxed font-bold italic uppercase tracking-tighter relative z-10">
+              Thursday initial posts are critical for peer response compliance. Complete Discussion posts by 21:00 to avoid late-term oxidation and neural drift.
             </p>
           </div>
         </div>
@@ -216,15 +235,15 @@ export function Dashboard({ courses, assignments, updateStatus, setView }: Dashb
 function StatCard({ label, value, subValue, icon, color }: { label: string, value: string, subValue: string, icon: React.ReactNode, color: string }) {
   return (
     <motion.div 
-      whileHover={{ y: -8 }}
-      className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border-2 border-slate-50 dark:border-slate-800 shadow-xl shadow-blue-900/5 flex flex-col items-center text-center"
+      whileHover={{ y: -10, scale: 1.02 }}
+      className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border-2 border-slate-50 dark:border-slate-800 shadow-xl shadow-blue-900/5 flex flex-col items-center text-center transition-all hover:border-blue-500/50"
     >
-      <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center text-white mb-6 shadow-lg", color)}>
+      <div className={cn("w-16 h-16 rounded-2xl flex items-center justify-center text-white mb-6 shadow-xl", color)}>
         {icon}
       </div>
-      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{label}</p>
-      <h3 className="text-3xl font-black text-slate-900 dark:text-white tracking-tighter italic uppercase">{value}</h3>
-      <p className="text-[10px] font-bold text-slate-500 mt-2 uppercase tracking-widest">{subValue}</p>
+      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 italic">{label}</p>
+      <h3 className="text-4xl font-black text-slate-900 dark:text-white tracking-tighter italic uppercase">{value}</h3>
+      <p className="text-[10px] font-bold text-slate-500 mt-3 uppercase tracking-widest border-t-2 border-slate-50 dark:border-slate-800 pt-3 w-full">{subValue}</p>
     </motion.div>
   );
 }

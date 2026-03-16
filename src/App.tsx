@@ -14,7 +14,6 @@ import { StudyTimer } from './components/StudyTimer';
 import { AIChat } from './components/AIChat';
 import { Wellness } from './components/Wellness';
 import { Settings } from './components/Settings';
-import { IntegrationsHub } from './components/IntegrationsHub';
 import { AuthView } from './components/Auth/AuthView';
 import { Course, Assignment, View } from './types';
 import { useToast } from './components/Toast';
@@ -120,7 +119,6 @@ export default function App() {
 
   /**
    * DATABASE MUTATIONS (Centralized)
-   * These methods are passed to sub-components to prevent "API Key" crashes.
    */
   const addCourse = async (course: Omit<Course, 'id'>) => {
     const { data, error } = await supabase
@@ -266,7 +264,7 @@ export default function App() {
             />
           )}
           {currentView === 'wellness' && <Wellness />}
-          {currentView === 'integrations' && <IntegrationsHub />}
+          {/* IntegrationsHub extracted for system stability */}
           {currentView === 'settings' && <Settings />}
         </div>
       </main>

@@ -1,9 +1,13 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Course } from '../types';
-import { Play, Pause, RotateCcw, Coffee, Brain, Bell } from 'lucide-react';
+import { Play, Pause, RotateCcw, Coffee, Brain, Bell, Zap, Target } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { motion } from 'motion/react';
-
 import { requestNotificationPermission, sendNotification } from '../lib/notifications';
 import { useToast } from './Toast';
 
@@ -39,9 +43,8 @@ export function StudyTimer({ courses }: StudyTimerProps) {
     setIsActive(false);
     if (timerRef.current) clearInterval(timerRef.current);
     
-    // Play sound or notification
-    sendNotification(mode === 'study' ? 'Study Session Complete!' : 'Break Over!', {
-      body: mode === 'study' ? 'Time for a well-deserved break.' : 'Ready to dive back in?',
+    sendNotification(mode === 'study' ? 'Extraction Cycle Complete!' : 'Recovery Period Over!', {
+      body: mode === 'study' ? 'System cool-down initiated. Take 5.' : 'Voltage stabilized. Resume extraction.',
     }, showToast);
 
     if (mode === 'study') {
@@ -58,6 +61,7 @@ export function StudyTimer({ courses }: StudyTimerProps) {
   const resetTimer = () => {
     setIsActive(false);
     setTimeLeft(mode === 'study' ? 25 * 60 : 5 * 60);
+    showToast('Timer Reset', 'Clock cycles re-synchronized.', 'info');
   };
 
   const formatTime = (seconds: number) => {
@@ -69,141 +73,130 @@ export function StudyTimer({ courses }: StudyTimerProps) {
   const progress = (mode === 'study' ? (25 * 60 - timeLeft) / (25 * 60) : (5 * 60 - timeLeft) / (5 * 60)) * 100;
 
   return (
-    <div className="max-w-2xl mx-auto space-y-8">
+    <div className="max-w-2xl mx-auto space-y-10 pb-20 animate-in fade-in duration-700">
       <header className="text-center">
-        <h2 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Focus Timer</h2>
-        <p className="text-slate-500 dark:text-slate-400 mt-1">Use the Pomodoro technique to stay productive.</p>
+        <h2 className="text-4xl font-black text-slate-900 dark:text-white tracking-tighter italic uppercase">Focus Engine</h2>
+        <p className="text-slate-500 font-bold uppercase tracking-widest text-[10px] mt-2">Manage cognitive load with high-intensity cycles</p>
       </header>
 
-      <div className="bg-white dark:bg-slate-900 p-6 md:p-12 rounded-[2rem] md:rounded-[3rem] border border-slate-200 dark:border-slate-800 shadow-xl shadow-blue-900/5 flex flex-col items-center space-y-8 relative overflow-hidden">
-        {/* Background Decoration */}
-        <div className={cn(
-          "absolute top-0 left-0 w-full h-2 transition-colors duration-500",
-          mode === 'study' ? "bg-blue-500" : "bg-emerald-500"
-        )} />
-
-        <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl w-full max-w-xs">
+      <div className="bg-white dark:bg-slate-900 p-10 md:p-14 rounded-[3rem] border-2 border-slate-100 dark:border-slate-800 shadow-2xl shadow-blue-900/10 flex flex-col items-center space-y-10 relative overflow-hidden transition-all hover:border-blue-500/30">
+        
+        {/* Mode Selector */}
+        <div className="flex bg-slate-100 dark:bg-slate-950 p-1.5 rounded-2xl w-full max-w-sm border-2 border-slate-200 dark:border-slate-800">
           <button 
             onClick={() => { setMode('study'); setTimeLeft(25 * 60); setIsActive(false); }}
             className={cn(
-              "flex-1 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all",
-              mode === 'study' ? "bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm" : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+              "flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all",
+              mode === 'study' ? "bg-blue-600 text-white shadow-xl" : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
             )}
           >
-            <Brain size={18} /> <span className="hidden sm:inline">Study Session</span><span className="sm:hidden">Study</span>
+            <Zap size={16} /> <span>Extraction</span>
           </button>
           <button 
             onClick={() => { setMode('break'); setTimeLeft(5 * 60); setIsActive(false); }}
             className={cn(
-              "flex-1 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all",
-              mode === 'break' ? "bg-white dark:bg-slate-700 text-emerald-600 dark:text-emerald-400 shadow-sm" : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+              "flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all",
+              mode === 'break' ? "bg-emerald-600 text-white shadow-xl" : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
             )}
           >
-            <Coffee size={18} /> <span className="hidden sm:inline">Short Break</span><span className="sm:hidden">Break</span>
+            <Coffee size={16} /> <span>Recovery</span>
           </button>
         </div>
 
-        <div className="relative w-48 h-48 sm:w-64 sm:h-64 flex items-center justify-center">
+        {/* Visual Timer Ring */}
+        <div className="relative w-56 h-56 sm:w-72 sm:h-72 flex items-center justify-center">
           <svg className="w-full h-full -rotate-90">
             <circle
-              cx="50%"
-              cy="50%"
-              r="45%"
+              cx="50%" cy="50%" r="45%"
               fill="none"
               stroke="currentColor"
-              strokeWidth="8"
-              className="text-slate-100 dark:text-slate-800"
+              strokeWidth="10"
+              className="text-slate-50 dark:text-slate-800/50"
             />
             <motion.circle
-              cx="50%"
-              cy="50%"
-              r="45%"
+              cx="50%" cy="50%" r="45%"
               fill="none"
               stroke="currentColor"
-              strokeWidth="8"
+              strokeWidth="10"
               strokeDasharray="282.7%"
               animate={{ strokeDashoffset: `${282.7 * (1 - progress / 100)}%` }}
               className={cn(
-                "transition-colors duration-500",
-                mode === 'study' ? "text-blue-500" : "text-emerald-500"
+                "transition-all duration-500 shadow-[0_0_15px_rgba(0,0,0,0.1)]",
+                mode === 'study' ? "text-blue-600" : "text-emerald-500"
               )}
             />
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-4xl sm:text-6xl font-black text-slate-900 dark:text-white tabular-nums tracking-tighter">
+            <span className="text-5xl sm:text-7xl font-black text-slate-900 dark:text-white tabular-nums tracking-tighter italic">
               {formatTime(timeLeft)}
             </span>
-            <span className="text-[10px] sm:text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-2">
-              {mode === 'study' ? 'Focusing' : 'Resting'}
-            </span>
+            <div className={cn(
+              "flex items-center gap-2 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest mt-4 border-2",
+              mode === 'study' ? "text-blue-600 border-blue-100 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-800" : "text-emerald-600 border-emerald-100 bg-emerald-50 dark:bg-emerald-900/20 dark:border-emerald-800"
+            )}>
+              {isActive ? <div className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" /> : null}
+              {mode === 'study' ? 'Active Extraction' : 'System Recovery'}
+            </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
+        {/* Controls */}
+        <div className="flex items-center gap-6">
           <button 
             onClick={resetTimer}
-            className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl border border-slate-200 dark:border-slate-800 flex items-center justify-center text-slate-400 dark:text-slate-600 hover:text-slate-600 dark:hover:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
+            className="w-14 h-14 rounded-2xl border-2 border-slate-100 dark:border-slate-800 flex items-center justify-center text-slate-400 dark:text-slate-500 hover:text-blue-600 hover:border-blue-600 transition-all active:scale-90"
           >
-            <RotateCcw size={20} className="sm:w-6 sm:h-6" />
+            <RotateCcw size={22} />
           </button>
           <button 
             onClick={toggleTimer}
             className={cn(
-              "w-16 h-16 sm:w-20 sm:h-20 rounded-3xl flex items-center justify-center text-white shadow-lg transition-all transform active:scale-95",
-              mode === 'study' ? "bg-blue-600 shadow-blue-600/20" : "bg-emerald-600 shadow-emerald-600/20",
-              isActive ? "hover:bg-opacity-90" : "hover:bg-opacity-90"
+              "w-20 h-20 sm:w-24 sm:h-24 rounded-[2rem] flex items-center justify-center text-white shadow-2xl transition-all transform active:scale-95 group",
+              mode === 'study' ? "bg-blue-600 shadow-blue-600/30" : "bg-emerald-600 shadow-emerald-600/30"
             )}
           >
-            {isActive ? <Pause size={28} className="sm:w-8 sm:h-8" fill="currentColor" /> : <Play size={28} className="sm:w-8 sm:h-8 ml-1" fill="currentColor" />}
+            {isActive ? <Pause size={32} className="group-hover:scale-110 transition-transform" fill="currentColor" /> : <Play size={32} className="ml-1 group-hover:scale-110 transition-transform" fill="currentColor" />}
           </button>
           <button 
-            onClick={() => {
-              const Notification = (window as any).Notification;
-              if (Notification && Notification.permission === 'granted') {
-                sendNotification('SNHU Compass: Test Alert', {
-                  body: 'Your study timer is working correctly!',
-                }, showToast);
-              } else {
-                requestNotificationPermission().then(permission => {
-                  if (permission === 'granted') {
-                    sendNotification('SNHU Compass: Notifications Enabled', {
-                      body: 'You will now receive alerts for your study sessions.',
-                    }, showToast);
-                  } else {
-                    showToast('System Alert', 'Browser notifications are disabled, but in-app alerts are active!', 'info');
-                  }
-                });
-              }
-            }}
-            className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl border border-slate-200 dark:border-slate-800 flex items-center justify-center text-slate-400 dark:text-slate-600 hover:text-slate-600 dark:hover:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
+            onClick={requestPermission}
+            className="w-14 h-14 rounded-2xl border-2 border-slate-100 dark:border-slate-800 flex items-center justify-center text-slate-400 dark:text-slate-500 hover:text-blue-600 hover:border-blue-600 transition-all active:scale-90"
           >
-            <Bell size={20} className="sm:w-6 sm:h-6" />
+            <Bell size={22} />
           </button>
         </div>
 
-        <div className="w-full max-w-xs space-y-2">
-          <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest block text-center">Focusing on</label>
+        {/* Target Module Selector */}
+        <div className="w-full max-w-sm space-y-3">
+          <div className="flex items-center gap-2 ml-1">
+            <Target size={14} className="text-slate-400" />
+            <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest block">Extraction Target</label>
+          </div>
           <select 
             value={selectedCourse}
             onChange={(e) => setSelectedCourse(e.target.value)}
-            className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:border-blue-500 font-medium text-slate-700 dark:text-slate-200"
+            className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-950 border-2 border-slate-100 dark:border-slate-800 rounded-2xl focus:outline-none focus:border-blue-600 font-black uppercase text-xs tracking-tight text-slate-700 dark:text-slate-200 transition-all italic"
           >
-            {courses.map(c => <option key={c.id} value={c.id}>{c.code} - {c.name}</option>)}
+            {courses.map(c => <option key={c.id} value={c.id}>{c.code} // {c.name}</option>)}
           </select>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="bg-blue-50 dark:bg-blue-900/20 p-6 rounded-3xl border border-blue-100 dark:border-blue-900/30">
-          <h4 className="font-bold text-blue-900 dark:text-blue-300 mb-2">Why Pomodoro?</h4>
-          <p className="text-sm text-blue-700 dark:text-blue-400 leading-relaxed">
-            Studying in 25-minute bursts helps prevent burnout and keeps your brain fresh for those complex SNHU modules.
+      {/* Logic Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border-2 border-slate-100 dark:border-slate-800 shadow-xl">
+          <h4 className="text-xs font-black text-blue-600 dark:text-blue-400 mb-3 uppercase tracking-widest flex items-center gap-2">
+            <Brain size={16} /> Cognitive Protocol
+          </h4>
+          <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-bold uppercase tracking-tighter italic">
+            Studying in 25-minute high-voltage bursts prevents neural burnout and maximizes data retention for complex SNHU modules.
           </p>
         </div>
-        <div className="bg-emerald-50 dark:bg-emerald-900/20 p-6 rounded-3xl border border-emerald-100 dark:border-emerald-900/30">
-          <h4 className="font-bold text-emerald-900 dark:text-emerald-300 mb-2">Take a Real Break</h4>
-          <p className="text-sm text-emerald-700 dark:text-emerald-400 leading-relaxed">
-            During your 5-minute break, step away from the screen. Stretch, grab water, or look out a window.
+        <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border-2 border-slate-100 dark:border-slate-800 shadow-xl">
+          <h4 className="text-xs font-black text-emerald-600 dark:text-emerald-400 mb-3 uppercase tracking-widest flex items-center gap-2">
+            <RotateCcw size={16} /> Cool-down Phase
+          </h4>
+          <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-bold uppercase tracking-tighter italic">
+            Disconnect from all visual terminals during recovery. Hydrate, stretch, and stabilize voltage before the next cycle.
           </p>
         </div>
       </div>
