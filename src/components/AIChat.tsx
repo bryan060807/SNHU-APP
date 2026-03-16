@@ -5,8 +5,8 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Assignment, Course } from '../types';
-import { Send, Bot, User, Sparkles, Loader2, Trash2, Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
-import { getStudyAdvice, generateSpeech } from '../services/geminiService';
+import { Send, Bot, User, Sparkles, Loader2, Trash2 } from 'lucide-react';
+import { getStudyAdvice } from '../services/geminiService';
 import ReactMarkdown from 'react-markdown';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
@@ -30,52 +30,7 @@ export function AIChat({ assignments, courses, updateAssignmentStatus }: AIChatP
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isTalkMode, setIsTalkMode] = useState(false);
-  const [isListening, setIsListening] = useState(false);
-  const [isSpeaking, setIsSpeaking] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const recognitionRef = useRef<any>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const sourceRef = useRef<AudioBufferSourceNode | null>(null);
-  const abortControllerRef = useRef<AbortController | null>(null);
-
-  // Initialize Speech Recognition
-  useEffect(() => {
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (SpeechRecognition) {
-      recognitionRef.current = new SpeechRecognition();
-      recognitionRef.current.continuous = false;
-      recognitionRef.current.lang = 'en-US';
-
-      recognitionRef.current.onresult = (event: any) => {
-        const transcript = event.results[0][0].transcript;
-        setInput(transcript);
-        setIsListening(false);
-        if (isTalkMode) {
-          setTimeout(() => handleSend(undefined, transcript), 500);
-        }
-      };
-      
-      recognitionRef.current.onerror = () => setIsListening(false);
-      recognitionRef.current.onend = () => setIsListening(false);
-    }
-    return () => stopSpeaking();
-  }, [isTalkMode]);
-
-  const stopSpeaking = () => {
-    if (abortControllerRef.current) abortControllerRef.current.abort();
-    if (sourceRef.current) sourceRef.current.stop();
-    setIsSpeaking(false);
-  };
-
-  const toggleListening = () => {
-    if (isListening) recognitionRef.current?.stop();
-    else {
-      stopSpeaking();
-      recognitionRef.current?.start();
-      setIsListening(true);
-    }
-  };
 
   // Fetch history from Supabase
   useEffect(() => {
@@ -104,42 +59,34 @@ export function AIChat({ assignments, courses, updateAssignmentStatus }: AIChatP
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages, isLoading]);
 
-  const handleSend = async (e?: React.FormEvent, overrideInput?: string) => {
+  const handleSend = async (e?: React.FormEvent) => {
     e?.preventDefault();
-    const messageContent = overrideInput || input;
-    if (!messageContent.trim() || isLoading || !user) return;
+    if (!input.trim() || isLoading || !user) return;
 
-    const userMessage: Message = { id: Date.now().toString(), role: 'user', content: messageContent };
+    const userMessage: Message = { id: Date.now().toString(), role: 'user', content: input };
     setMessages(prev => [...prev, userMessage]);
     setInput('');
     setIsLoading(true);
 
-    // Persist user message
-    await supabase.from('chat_history').insert([{ user_id: user.id, role: 'user', content: messageContent }]);
+    await supabase.from('chat_history').insert([{ user_id: user.id, role: 'user', content: input }]);
 
     const upcoming = assignments
       .filter(a => a.status !== 'completed')
-      .map(a => `- ${a.title} (ID: ${a.id}, Due: ${new Date(a.dueDate).toLocaleDateString()}, Status: ${a.status})`)
+      .map(a => `- ${a.title} (Due: ${new Date(a.dueDate).toLocaleDateString()})`)
       .join('\n');
     
-    // Core Prompt with Long-Term Memory
     const prompt = `
       [IDENTITY_LINK]
       User: ${user.full_name}
-      Major: ${user.ai_knowledge_base || 'General Studies'}
-      Long-Term Memory: ${user.ai_memory || 'No historical data available.'}
-      Current Vibe: ${user.ai_personalization || 'Balanced Support'}
-      
       [ACADEMIC_CONTEXT]
       Upcoming Tasks:
       ${upcoming}
-
       [USER_INPUT]
-      ${messageContent}
+      ${input}
     `;
 
     const result = await getStudyAdvice(prompt, messages.slice(-10));
-    let assistantContent = result.text || "Neural link timed out. Please retry.";
+    const assistantContent = result.text || "Neural link timed out. Please retry.";
 
     const assistantMessage: Message = { 
       id: (Date.now() + 1).toString(), 
@@ -150,18 +97,11 @@ export function AIChat({ assignments, courses, updateAssignmentStatus }: AIChatP
     setMessages(prev => [...prev, assistantMessage]);
     setIsLoading(false);
 
-    // Persist assistant message
     await supabase.from('chat_history').insert([{ user_id: user.id, role: 'assistant', content: assistantContent }]);
-
-    if (isTalkMode && assistantContent) {
-      const cleanText = assistantContent.replace(/[#*`_]/g, '');
-      const audio = await generateSpeech(cleanText, user.ai_voice || 'Kore');
-      // Logic for playing PCM audio would go here
-    }
   };
 
   const clearHistory = async () => {
-    if (!user || !window.confirm('Wipe neural history? This cannot be undone.')) return;
+    if (!user || !window.confirm('Wipe neural history?')) return;
     await supabase.from('chat_history').delete().eq('user_id', user.id);
     setMessages([{ id: '1', role: 'assistant', content: 'History purged. System reset.' }]);
   };
@@ -175,23 +115,12 @@ export function AIChat({ assignments, courses, updateAssignmentStatus }: AIChatP
           </div>
           <div>
             <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter italic uppercase">Neural Buddy</h2>
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">SNHU Logic Engine Connected</p>
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Text-Only Logic Channel</p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          <button 
-            onClick={() => setIsTalkMode(!isTalkMode)}
-            className={cn(
-              "p-3 rounded-2xl transition-all border-2",
-              isTalkMode ? "bg-blue-600 border-blue-600 text-white shadow-lg" : "bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 text-slate-400"
-            )}
-          >
-            {isTalkMode ? <Volume2 size={20} /> : <VolumeX size={20} />}
-          </button>
-          <button onClick={clearHistory} className="p-3 text-slate-400 hover:text-rose-500 transition-colors">
-            <Trash2 size={20} />
-          </button>
-        </div>
+        <button onClick={clearHistory} className="p-3 text-slate-400 hover:text-rose-500 transition-colors">
+          <Trash2 size={20} />
+        </button>
       </header>
 
       <div className="flex-1 bg-white dark:bg-slate-900 rounded-[3rem] border-2 border-slate-100 dark:border-slate-800 shadow-2xl flex flex-col overflow-hidden">
@@ -228,25 +157,19 @@ export function AIChat({ assignments, courses, updateAssignmentStatus }: AIChatP
         </div>
 
         <div className="p-6 bg-slate-50 dark:bg-slate-900/50 border-t-2 border-slate-100 dark:border-slate-800">
-          <form onSubmit={handleSend} className="relative flex items-center gap-3">
+          <form onSubmit={handleSend} className="relative flex items-center w-full">
             <input 
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder={isListening ? "Listening to biometric audio..." : "Initialize query..."}
-              className="w-full pl-6 pr-14 py-5 bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-800 rounded-[2rem] focus:border-blue-500 outline-none transition-all dark:text-white font-bold"
+              placeholder="Initialize query..."
+              className="w-full pl-6 pr-20 py-5 bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-800 rounded-[2rem] focus:border-blue-500 outline-none transition-all dark:text-white font-bold"
             />
-            <button 
-              type="button"
-              onClick={toggleListening}
-              className={cn("absolute right-4 w-10 h-10 rounded-xl flex items-center justify-center transition-all", isListening ? "bg-rose-500 text-white animate-pulse" : "text-slate-400")}
-            >
-              {isListening ? <MicOff size={20} /> : <Mic size={20} />}
-            </button>
+            
             <button 
               disabled={!input.trim() || isLoading}
-              className="w-14 h-14 bg-blue-600 text-white rounded-[1.5rem] flex items-center justify-center shadow-xl shadow-blue-600/20 hover:bg-blue-700 transition-all flex-shrink-0"
+              className="absolute right-2 w-12 h-12 bg-blue-600 text-white rounded-xl flex items-center justify-center shadow-xl shadow-blue-600/20 hover:bg-blue-700 transition-all disabled:opacity-50"
             >
-              <Send size={20} />
+              <Send size={22} />
             </button>
           </form>
         </div>

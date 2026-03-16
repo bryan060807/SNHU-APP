@@ -11,7 +11,7 @@ import {
   BookOpen, 
   FileText, 
   Loader2, 
-  Sparkles, // Swapped Zap for Sparkles
+  Sparkles, 
   CheckCircle2 
 } from 'lucide-react';
 import { cn } from '../lib/utils';
@@ -21,7 +21,7 @@ import { useToast } from './Toast';
 
 interface CourseListProps {
   courses: Course[];
-  addCourse: (c: Omit<Course, 'id'>) => Promise<any>; // Updated to return the created course
+  addCourse: (c: Omit<Course, 'id'>) => Promise<any>;
   deleteCourse: (id: string) => void;
   bulkAddAssignments: (assignments: any[]) => Promise<void>;
 }
@@ -88,8 +88,15 @@ export function CourseList({ courses, addCourse, deleteCourse, bulkAddAssignment
     setIsAdding(true);
   };
 
+  /**
+   * 7-3-1 Engagement Protocol Implementation
+   * Snaps extracted assignments to SNHU Industrial Grid
+   */
   const handleConfirmImport = async () => {
-    if (!newCode || !newName || !importData) return;
+    if (!newCode || !newName || !importData || !newTermStart) {
+      showToast('Data Missing', 'Please ensure Term Start Date is set for 7-3-1 sync.', 'error');
+      return;
+    }
     setIsLoading(true);
     
     try {
@@ -97,23 +104,48 @@ export function CourseList({ courses, addCourse, deleteCourse, bulkAddAssignment
         code: newCode,
         name: newName,
         color: newColor,
-        termStartDate: newTermStart || undefined,
+        termStartDate: newTermStart,
       });
 
       if (!courseData?.id) throw new Error("Course initialization failed.");
 
-      const assignmentsToImport = importData.assignments.map(a => ({
-        course_id: courseData.id,
-        title: a.title,
-        due_date: a.dueDate,
-        type: a.type,
-        status: 'todo',
-        estimated_hours: a.estimatedHours
-      }));
+      const termStart = new Date(newTermStart);
+
+      const assignmentsToImport = importData.assignments.map(a => {
+        const extractedDate = new Date(a.dueDate);
+        
+        // Calculate Module Week (1-8)
+        const diffTime = Math.abs(extractedDate.getTime() - termStart.getTime());
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        const weekNumber = Math.max(1, Math.min(8, Math.ceil(diffDays / 7)));
+
+        // Recalibrate to SNHU Thursday/Sunday snap
+        const finalDate = new Date(termStart);
+        const weekOffset = (weekNumber - 1) * 7;
+        // Snap: Day 3 (Thu) for Discussions, Day 6 (Sun) for others
+        const dayOffset = a.type === 'discussion' ? 3 : 6; 
+        
+        finalDate.setDate(termStart.getDate() + weekOffset + dayOffset);
+        finalDate.setHours(23, 59, 0, 0);
+
+        // Standardize Labeling (Fixes inconsistency between courses)
+        const displayTitle = a.title.toLowerCase().includes('mod') 
+          ? a.title 
+          : `Module ${weekNumber}: ${a.title}`;
+
+        return {
+          course_id: courseData.id,
+          title: displayTitle,
+          due_date: finalDate.toISOString(),
+          type: a.type,
+          status: 'todo',
+          estimated_hours: a.estimatedHours || (a.type === 'discussion' ? 2 : 4)
+        };
+      });
 
       await bulkAddAssignments(assignmentsToImport);
       
-      showToast('Sync Complete', `Imported ${newCode} with ${assignmentsToImport.length} tasks.`, 'success');
+      showToast('Sync Complete', `7-3-1 Protocol active. ${assignmentsToImport.length} tasks snapped to grid.`, 'success');
       resetForm();
     } catch (error: any) {
       console.error("Import Crash:", error);
@@ -172,7 +204,7 @@ export function CourseList({ courses, addCourse, deleteCourse, bulkAddAssignment
                     <Sparkles size={16} /> Syllabus Analysis Complete
                   </h3>
                   <p className="text-xs text-blue-700 dark:text-blue-400 mt-1 font-medium italic">
-                    Detected {importData.assignments.length} potential milestones. Review identity labels below.
+                    Applying 7-3-1 Protocol: Snapping {importData.assignments.length} assignments to industrial grid.
                   </p>
                 </div>
               )}
@@ -195,6 +227,15 @@ export function CourseList({ courses, addCourse, deleteCourse, bulkAddAssignment
                     onChange={(e) => setNewName(e.target.value)}
                     className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-800 rounded-2xl dark:text-white font-bold outline-none focus:border-blue-500 transition-all"
                     placeholder="e.g. US History II"
+                  />
+                </div>
+                <div className="space-y-1 md:col-span-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Baseline (Term Start Date)</label>
+                  <input 
+                    type="date"
+                    value={newTermStart}
+                    onChange={(e) => setNewTermStart(e.target.value)}
+                    className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-800 rounded-2xl dark:text-white font-bold outline-none focus:border-blue-500 transition-all"
                   />
                 </div>
               </div>
