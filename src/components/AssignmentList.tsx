@@ -74,6 +74,10 @@ export function AssignmentList({ courses, assignments, addAssignment, updateAssi
     setIsImproving(false);
   };
 
+  /**
+   * RECALIBRATED: handleQuickPick
+   * Uses normalized Term Start to prevent Week offsets
+   */
   const handleQuickPick = (pickId: string) => {
     const pick = QUICK_PICKS.find(p => p.id === pickId);
     if (!pick) return;
@@ -82,10 +86,16 @@ export function AssignmentList({ courses, assignments, addAssignment, updateAssi
     let dueDate = new Date();
 
     if (course?.termStartDate) {
+      // Normalize to midnight UTC to match CourseList protocol
       const termStart = new Date(course.termStartDate);
+      termStart.setHours(0, 0, 0, 0);
+
+      // Week 1 = selectedModule 1 = 0 days offset
       const weekOffset = (selectedModule - 1) * 7;
       const dayOffset = pick.day === 'Thursday' ? 3 : 6; 
-      dueDate = addDays(termStart, weekOffset + dayOffset);
+      
+      dueDate = new Date(termStart);
+      dueDate.setDate(termStart.getDate() + weekOffset + dayOffset);
     } else {
       const startOfCurrentWeek = startOfWeek(new Date(), { weekStartsOn: 1 });
       const dayOffset = pick.day === 'Thursday' ? 3 : 6;
@@ -131,7 +141,6 @@ export function AssignmentList({ courses, assignments, addAssignment, updateAssi
     setNewHours(3);
   };
 
-  // LOGIC FIX: Ensure assignments are actually being filtered and mapped for the UI
   const filteredAssignments = assignments
     .filter(a => filter === 'all' || a.status === filter)
     .filter(a => a.title.toLowerCase().includes(search.toLowerCase()))
@@ -299,7 +308,6 @@ export function AssignmentList({ courses, assignments, addAssignment, updateAssi
         )}
       </AnimatePresence>
 
-      {/* RENDER LIST: This part was missing from the snippet */}
       <div className="space-y-4">
         {filteredAssignments.length > 0 ? (
           filteredAssignments.map((a) => {
