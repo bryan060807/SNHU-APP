@@ -14,6 +14,8 @@ import { StudyTimer } from './components/StudyTimer';
 import { AIChat } from './components/AIChat';
 import { Wellness } from './components/Wellness';
 import { Settings } from './components/Settings';
+import { PrivacyPolicy } from './components/Legal/PrivacyPolicy';
+import { TermsOfService } from './components/Legal/TermsOfService';
 import { AuthView } from './components/Auth/AuthView';
 import { Course, Assignment, View } from './types';
 import { useToast } from './components/Toast';
@@ -28,8 +30,15 @@ export default function App() {
   const [dataLoading, setDataLoading] = useState(false);
 
   /**
+   * ROUTE OVERRIDE PROTOCOL
+   * Logic to handle public legal paths regardless of Auth state.
+   */
+  const path = window.location.pathname;
+  if (path === '/privacy') return <PrivacyPolicy />;
+  if (path === '/tos') return <TermsOfService />;
+
+  /**
    * THEME PERSISTENCE
-   * Bridges the Supabase profile theme with the DOM.
    */
   useEffect(() => {
     if (profile?.theme) {
@@ -40,7 +49,6 @@ export default function App() {
 
   /**
    * CELEBRATION PROTOCOL
-   * Triggers industrial-blue confetti on user's birthday.
    */
   useEffect(() => {
     if (profile?.birthday) {
@@ -65,7 +73,6 @@ export default function App() {
 
   /**
    * DATA STREAM: FETCH
-   * Centralized retrieval for courses and assignments.
    */
   const fetchData = useCallback(async () => {
     if (!user) return;
@@ -103,7 +110,6 @@ export default function App() {
 
   /**
    * REAL-TIME SUBSCRIPTION
-   * Listens for Postgres changes to keep the Neural Link live.
    */
   useEffect(() => {
     fetchData();
@@ -264,7 +270,6 @@ export default function App() {
             />
           )}
           {currentView === 'wellness' && <Wellness />}
-          {/* IntegrationsHub extracted for system stability */}
           {currentView === 'settings' && <Settings />}
         </div>
       </main>

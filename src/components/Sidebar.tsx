@@ -4,7 +4,11 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, BookOpen, CheckSquare, Timer, MessageSquare, GraduationCap, Bell, BellOff, Menu, X, Settings as SettingsIcon, LogOut, User, HeartPulse } from 'lucide-react';
+import { 
+  LayoutDashboard, BookOpen, CheckSquare, Timer, MessageSquare, 
+  GraduationCap, Bell, BellOff, Menu, X, Settings as SettingsIcon, 
+  LogOut, User, HeartPulse 
+} from 'lucide-react';
 import { View } from '../types';
 import { cn } from '../lib/utils';
 import { requestNotificationPermission, sendNotification } from '../lib/notifications';
@@ -53,10 +57,6 @@ export function Sidebar({ currentView, setView }: SidebarProps) {
     }
   };
 
-  /**
-   * REFINED MENU: 
-   * Mainframe/Integrations removed to focus on core logic modules.
-   */
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'assignments', label: 'Assignments', icon: CheckSquare },
@@ -142,6 +142,13 @@ export function Sidebar({ currentView, setView }: SidebarProps) {
             <LogOut size={16} className="group-hover:-translate-x-1 transition-transform" />
             <span>Terminate Link</span>
           </button>
+
+          {/* HARDENED LEGAL FOOTER FOR GOOGLE COMPLIANCE */}
+          <div className="flex items-center justify-center gap-4 pt-4 border-t border-slate-100 dark:border-slate-800">
+             <a href="/privacy" target="_blank" className="text-[8px] font-black text-slate-300 hover:text-blue-500 uppercase tracking-[0.2em] transition-colors">Privacy</a>
+             <div className="w-1 h-1 rounded-full bg-slate-200 dark:bg-slate-800" />
+             <a href="/tos" target="_blank" className="text-[8px] font-black text-slate-300 hover:text-blue-500 uppercase tracking-[0.2em] transition-colors">Terms</a>
+          </div>
         </div>
       </aside>
 
@@ -205,7 +212,12 @@ export function Sidebar({ currentView, setView }: SidebarProps) {
                 </button>
               ))}
             </div>
-            <div className="pt-8 border-t-2 border-slate-100 dark:border-slate-800">
+            
+            <div className="pt-8 space-y-6 border-t-2 border-slate-100 dark:border-slate-800">
+              <div className="flex justify-center gap-8">
+                 <a href="/privacy" className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Privacy</a>
+                 <a href="/tos" className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Terms</a>
+              </div>
               <button 
                 onClick={() => { signOut(); setIsMobileMenuOpen(false); }} 
                 className="w-full p-5 bg-rose-500 text-white rounded-[1.5rem] font-black uppercase tracking-widest flex items-center justify-center gap-4 shadow-xl shadow-rose-500/20"
