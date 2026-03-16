@@ -11,7 +11,7 @@ import {
   Loader2, 
   ExternalLink, 
   Database, 
-  Zap, 
+  Activity, // Swapped Zap for Activity
   Lock, 
   RefreshCcw 
 } from 'lucide-react';
@@ -32,7 +32,6 @@ export function IntegrationsHub() {
   const [isLoading, setIsLoading] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
 
-  // Core Connection Check: Verifies the OAuth provider is active in the current session
   useEffect(() => {
     const checkConnection = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -47,14 +46,12 @@ export function IntegrationsHub() {
     setIsLoading(true);
     
     try {
-      // Execute all Edge Functions in parallel for maximum speed
       const [calRes, taskRes, driveRes] = await Promise.all([
         supabase.functions.invoke('google-calendar'),
         supabase.functions.invoke('google-tasks'),
         supabase.functions.invoke('google-drive')
       ]);
 
-      // 1. Handle Calendar Data
       if (calRes.error) {
         console.warn("Calendar Sync Failed:", calRes.error);
         if (calRes.error.status === 401) {
@@ -64,14 +61,12 @@ export function IntegrationsHub() {
         setCalendarEvents(calRes.data || []);
       }
 
-      // 2. Handle Tasks Data
       if (taskRes.error) {
         console.warn("Tasks Sync Failed:", taskRes.error);
       } else {
         setTasks(taskRes.data || []);
       }
 
-      // 3. Handle Drive Data
       if (driveRes.error) {
         console.warn("Drive Sync Failed:", driveRes.error);
       } else {
@@ -161,7 +156,7 @@ export function IntegrationsHub() {
                 ))
               ) : (
                 <div className="h-full flex flex-col items-center justify-center text-slate-400 opacity-30">
-                   <Zap size={32} className="mb-2" />
+                   <Activity size={32} className="mb-2" />
                    <p className="text-[10px] font-black uppercase tracking-widest">Neural Stream Empty</p>
                 </div>
               )}

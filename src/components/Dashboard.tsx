@@ -11,7 +11,7 @@ import {
   Calendar, 
   AlertCircle, 
   ArrowRight, 
-  Zap, 
+  Activity, // Swapped Zap for Activity
   Sparkles,
   BookOpen,
   Layout,
@@ -32,11 +32,9 @@ interface DashboardProps {
 export function Dashboard({ courses, assignments, updateStatus, setView }: DashboardProps) {
   const { user } = useAuth();
 
-  // Personalization Logic
   const today = new Date();
   const firstName = user?.full_name?.split(' ')[0] || 'Scholar';
 
-  // Filter Logic
   const incomplete = assignments.filter(a => a.status !== 'completed');
   const upcoming = incomplete
     .filter(a => !isBefore(new Date(a.dueDate), today))
@@ -50,7 +48,6 @@ export function Dashboard({ courses, assignments, updateStatus, setView }: Dashb
     new Date(a.completedAt).toDateString() === today.toDateString()
   ).length;
 
-  // Stats Calculation
   const totalHoursRemaining = incomplete.reduce((acc, curr) => acc + (curr.estimatedHours || 0), 0);
   const progressPercent = assignments.length > 0 
     ? Math.round((assignments.filter(a => a.status === 'completed').length / assignments.length) * 100) 
@@ -58,7 +55,6 @@ export function Dashboard({ courses, assignments, updateStatus, setView }: Dashb
 
   return (
     <div className="space-y-10 pb-20">
-      {/* Header & Personalization */}
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
           <h2 className="text-4xl font-black text-slate-900 dark:text-white tracking-tighter italic uppercase">
@@ -77,13 +73,12 @@ export function Dashboard({ courses, assignments, updateStatus, setView }: Dashb
         </div>
       </header>
 
-      {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard 
           label="Course Load" 
           value={`${progressPercent}%`} 
           subValue="Term Completion"
-          icon={<Zap size={22} fill="currentColor" />}
+          icon={<Activity size={22} />} // Swapped from Zap
           color="bg-blue-600 shadow-blue-600/20"
         />
         <StatCard 
@@ -110,7 +105,6 @@ export function Dashboard({ courses, assignments, updateStatus, setView }: Dashb
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-        {/* Main Feed: Upcoming Assignments */}
         <div className="lg:col-span-2 space-y-8">
           <section className="bg-white dark:bg-slate-900 rounded-[3rem] border-2 border-slate-100 dark:border-slate-800 shadow-2xl shadow-blue-900/5 overflow-hidden">
             <div className="p-8 md:p-10 border-b-2 border-slate-50 dark:border-slate-800 flex items-center justify-between">
@@ -175,7 +169,6 @@ export function Dashboard({ courses, assignments, updateStatus, setView }: Dashb
           </section>
         </div>
 
-        {/* Sidebar: Course Progress */}
         <div className="space-y-8">
           <section className="bg-white dark:bg-slate-900 p-10 rounded-[3rem] border-2 border-slate-100 dark:border-slate-800 shadow-2xl shadow-blue-900/5">
             <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase italic tracking-tight mb-8">Course Saturation</h3>
@@ -206,10 +199,9 @@ export function Dashboard({ courses, assignments, updateStatus, setView }: Dashb
             </div>
           </section>
 
-          {/* Industrial Tip */}
           <div className="bg-slate-900 dark:bg-blue-950 p-8 rounded-[2.5rem] border-2 border-slate-800 shadow-2xl">
             <h4 className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-              <Zap size={16} fill="currentColor" /> System Advisory
+              <Sparkles size={16} /> System Advisory
             </h4>
             <p className="text-xs text-slate-300 leading-relaxed font-bold italic uppercase tracking-tighter">
               Thursday initial posts are critical for peer response compliance. Complete Discussion posts by 21:00 to avoid late-term oxidation.
