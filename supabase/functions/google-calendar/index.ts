@@ -1,92 +1,83 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7"
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+};
 
 serve(async (req) => {
-  // Handle CORS preflight
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
+  // 1. CORS Preflight Handshake
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
 
   try {
-    /**
-     * 1. Initialize Supabase Client
-     * Using 'SERVICE_ROLE_KEY' as the custom secret name to bypass 
-     * Supabase's restricted 'SUPABASE_' naming prefix.
-     */
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SERVICE_ROLE_KEY') ?? '', // Updated custom secret name
-      { 
-        global: { 
-          headers: { Authorization: req.headers.get('Authorization')! } 
-        } 
-      }
-    )
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+    const serviceKey = Deno.env.get('SB_SERVICE_ROLE_KEY') ?? '';
 
-    /**
-     * 2. Validate User Session
-     * We retrieve the session to extract the 'provider_token' 
-     * which Google sent during the OAuth login.
-     */
-    const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession()
+    if (!serviceKey) throw new Error("Internal Server Error: SB_SERVICE_ROLE_KEY is missing.");
+
+    const supabaseAdmin = createClient(supabaseUrl, serviceKey);
+
+    // 2. Extract User Session
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) throw new Error("Missing Authorization header.");
+
+    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(
+      authHeader.replace('Bearer ', '')
+    );
+
+    if (authError || !user) throw new Error("Unauthorized: Invalid user session.");
+
+    // 3. Robust Token Extraction Protocol
+    // Checking both identities table and admin user metadata for the provider token
+    const { data: userData, error: userError } = await supabaseAdmin.auth.admin.getUserById(user.id);
     
-    if (sessionError || !session) {
-      throw new Error("Unauthorized: No active session found.")
+    if (userError || !userData.user) throw new Error("Could not retrieve user identity data.");
+
+    const providerToken = userData.user.identities?.find(i => i.provider === 'google')?.identity_data?.provider_token;
+
+    if (!providerToken) {
+      return new Response(
+        JSON.stringify({ 
+          error: "google_auth_required", 
+          message: "Please re-login with Google to grant permissions." 
+        }), 
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    const token = session.provider_token
+    // 4. Industrial Fetch with Null Guards
+    // Replace URL below for Drive: https://www.googleapis.com/drive/v3/files?pageSize=10
+    const googleRes = await fetch("https://www.googleapis.com/calendar/v3/users/me/calendarList", {
+      headers: { Authorization: `Bearer ${providerToken}` }
+    });
 
-    if (!token) {
-      return new Response(JSON.stringify({ 
-        error: "No Google token found. Sign out and sign back in to refresh permissions." 
-      }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 401,
-      })
+    const data = await googleRes.json();
+
+    // 5. Catch Google-Specific API Errors (Fixes the 500 crash)
+    if (!googleRes.ok) {
+      console.error("Google API Error:", data);
+      return new Response(
+        JSON.stringify({ 
+          error: "google_api_error", 
+          details: data.error?.message || "Unknown Google API error" 
+        }), 
+        { status: googleRes.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    /**
-     * 3. Fetch Data from Google Calendar API
-     * Only retrieving upcoming events from the 'primary' calendar.
-     */
-    const now = new Date().toISOString()
-    const calResponse = await fetch(
-      `https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${now}&maxResults=10&singleEvents=true&orderBy=startTime`,
-      { 
-        headers: { 
-          Authorization: `Bearer ${token}`,
-          Accept: 'application/json'
-        } 
-      }
-    )
-
-    const data = await calResponse.json()
-
-    // Handle potential Google API errors (e.g., revoked permissions)
-    if (data.error) {
-      return new Response(JSON.stringify({ error: data.error.message }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: data.error.code || 400,
-      })
-    }
-
-    return new Response(JSON.stringify(data.items || []), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    return new Response(JSON.stringify(data), {
       status: 200,
-    })
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
 
-  } catch (error: any) {
-    return new Response(JSON.stringify({ error: error.message }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 400,
-    })
+  } catch (err) {
+    console.error("Function Crash:", err.message);
+    return new Response(
+      JSON.stringify({ error: "internal_server_error", message: err.message }), 
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
   }
-})
+});

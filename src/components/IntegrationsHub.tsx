@@ -11,7 +11,7 @@ import {
   Loader2, 
   ExternalLink, 
   Database, 
-  Activity, // Swapped Zap for Activity
+  Activity, 
   Lock, 
   RefreshCcw 
 } from 'lucide-react';
@@ -46,33 +46,41 @@ export function IntegrationsHub() {
     setIsLoading(true);
     
     try {
+      // Parallel Extraction Protocol
       const [calRes, taskRes, driveRes] = await Promise.all([
         supabase.functions.invoke('google-calendar'),
         supabase.functions.invoke('google-tasks'),
         supabase.functions.invoke('google-drive')
       ]);
 
+      // Logic: Calendar Unpacking
       if (calRes.error) {
         console.warn("Calendar Sync Failed:", calRes.error);
-        if (calRes.error.status === 401) {
-          showToast('Session Expired', 'Please re-authorize Google in Settings.', 'error');
-        }
       } else {
-        setCalendarEvents(calRes.data || []);
+        // Google Calendar returns { items: [...] }
+        setCalendarEvents(calRes.data?.items || []);
       }
 
+      // Logic: Tasks Unpacking
       if (taskRes.error) {
         console.warn("Tasks Sync Failed:", taskRes.error);
       } else {
+        // google-tasks function already returns data.items or []
         setTasks(taskRes.data || []);
       }
 
+      // Logic: Drive Unpacking
       if (driveRes.error) {
         console.warn("Drive Sync Failed:", driveRes.error);
       } else {
+        // google-drive function already returns data.files or []
         setDriveFiles(driveRes.data || []);
       }
       
+      if (!calRes.error && !taskRes.error && !driveRes.error) {
+        showToast('Sync Successful', 'Neural links established with Google Cloud.', 'success');
+      }
+
     } catch (error) {
       console.error('Integration Sync Error:', error);
       showToast('Sync Error', 'Biometric data link interrupted.', 'error');
@@ -107,7 +115,9 @@ export function IntegrationsHub() {
           )}
           <div className={cn(
             "flex items-center gap-3 px-6 py-3 rounded-[2rem] border-2 shadow-xl transition-all",
-            isConnected ? "bg-emerald-50 border-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:border-emerald-800" : "bg-slate-100 border-slate-200 text-slate-500"
+            isConnected 
+              ? "bg-emerald-50 border-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:border-emerald-800" 
+              : "bg-slate-100 border-slate-200 text-slate-500"
           )}>
             <Database size={18} className={isConnected ? "animate-pulse" : ""} />
             <span className="text-xs font-black uppercase tracking-widest">
@@ -133,29 +143,30 @@ export function IntegrationsHub() {
         </motion.div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          
           {/* Calendar Section */}
-          <section className="bg-white dark:bg-slate-900 p-8 rounded-[3rem] border-2 border-slate-100 dark:border-slate-800 shadow-xl space-y-6 hover:border-blue-500/50 transition-all flex flex-col">
+          <section className="bg-white dark:bg-slate-900 p-8 rounded-[3rem] border-2 border-slate-100 dark:border-slate-800 shadow-xl space-y-6 hover:border-blue-500/50 transition-all flex flex-col min-h-[500px]">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-blue-600/20">
                 <Calendar size={24} />
               </div>
-              <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase italic tracking-tight">Calendar</h3>
+              <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase italic tracking-tight">Schedule</h3>
             </div>
             
-            <div className="space-y-3 flex-1 overflow-y-auto max-h-[300px] min-h-[200px]">
+            <div className="space-y-3 flex-1 overflow-y-auto">
               {isLoading ? (
-                <div className="h-full flex items-center justify-center py-10"><Loader2 className="animate-spin text-blue-500" /></div>
+                <div className="h-full flex items-center justify-center"><Loader2 className="animate-spin text-blue-500" /></div>
               ) : calendarEvents.length > 0 ? (
                 calendarEvents.map((event) => (
-                  <div key={event.id} className="p-4 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-100 dark:border-slate-800 group">
-                    <span className="text-[10px] font-black text-blue-500 uppercase tracking-tighter">
-                      {event.start?.dateTime ? format(new Date(event.start.dateTime), 'MMM d, h:mm a') : 'All Day'}
+                  <div key={event.id} className="p-4 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-100 dark:border-slate-800">
+                    <span className="text-[9px] font-black text-blue-500 uppercase tracking-widest">
+                      {event.start?.dateTime ? format(new Date(event.start.dateTime), 'MMM d, h:mm a') : 'Full Cycle'}
                     </span>
-                    <p className="text-sm font-bold text-slate-700 dark:text-slate-200 truncate mt-1">{event.summary}</p>
+                    <p className="text-sm font-bold text-slate-700 dark:text-slate-200 truncate mt-1 uppercase tracking-tight">{event.summary}</p>
                   </div>
                 ))
               ) : (
-                <div className="h-full flex flex-col items-center justify-center text-slate-400 opacity-30">
+                <div className="h-full flex flex-col items-center justify-center text-slate-400 opacity-30 text-center">
                    <Activity size={32} className="mb-2" />
                    <p className="text-[10px] font-black uppercase tracking-widest">Neural Stream Empty</p>
                 </div>
@@ -167,30 +178,30 @@ export function IntegrationsHub() {
           </section>
 
           {/* Tasks Section */}
-          <section className="bg-white dark:bg-slate-900 p-8 rounded-[3rem] border-2 border-slate-100 dark:border-slate-800 shadow-xl space-y-6 hover:border-emerald-500/50 transition-all flex flex-col">
+          <section className="bg-white dark:bg-slate-900 p-8 rounded-[3rem] border-2 border-slate-100 dark:border-slate-800 shadow-xl space-y-6 hover:border-emerald-500/50 transition-all flex flex-col min-h-[500px]">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 bg-emerald-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-emerald-600/20">
                 <CheckSquare size={24} />
               </div>
-              <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase italic tracking-tight">Tasks</h3>
+              <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase italic tracking-tight">Objectives</h3>
             </div>
 
-            <div className="space-y-3 flex-1 overflow-y-auto max-h-[300px] min-h-[200px]">
+            <div className="space-y-3 flex-1 overflow-y-auto">
               {isLoading ? (
-                <div className="h-full flex items-center justify-center py-10"><Loader2 className="animate-spin text-emerald-500" /></div>
+                <div className="h-full flex items-center justify-center"><Loader2 className="animate-spin text-emerald-500" /></div>
               ) : tasks.length > 0 ? (
                 tasks.map((task) => (
                   <div key={task.id} className="p-4 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-100 dark:border-slate-800">
-                    <p className="text-sm font-bold text-slate-700 dark:text-slate-200">{task.title}</p>
+                    <p className="text-sm font-bold text-slate-700 dark:text-slate-200 uppercase tracking-tight">{task.title}</p>
                     {task.due && (
-                      <span className="text-[10px] font-black text-emerald-500 uppercase tracking-tighter">
-                        Due {format(new Date(task.due), 'MMM d')}
+                      <span className="text-[9px] font-black text-emerald-500 uppercase tracking-widest">
+                        Target {format(new Date(task.due), 'MMM d')}
                       </span>
                     )}
                   </div>
                 ))
               ) : (
-                <div className="h-full flex flex-col items-center justify-center text-slate-400 opacity-30">
+                <div className="h-full flex flex-col items-center justify-center text-slate-400 opacity-30 text-center">
                    <CheckSquare size={32} className="mb-2" />
                    <p className="text-[10px] font-black uppercase tracking-widest">No Active Google Tasks</p>
                 </div>
@@ -202,17 +213,17 @@ export function IntegrationsHub() {
           </section>
 
           {/* Drive Section */}
-          <section className="bg-white dark:bg-slate-900 p-8 rounded-[3rem] border-2 border-slate-100 dark:border-slate-800 shadow-xl space-y-6 hover:border-purple-500/50 transition-all flex flex-col">
+          <section className="bg-white dark:bg-slate-900 p-8 rounded-[3rem] border-2 border-slate-100 dark:border-slate-800 shadow-xl space-y-6 hover:border-purple-500/50 transition-all flex flex-col min-h-[500px]">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 bg-purple-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-purple-600/20">
                 <FileText size={24} />
               </div>
-              <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase italic tracking-tight">Drive</h3>
+              <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase italic tracking-tight">Archives</h3>
             </div>
 
-            <div className="space-y-3 flex-1 overflow-y-auto max-h-[300px] min-h-[200px]">
+            <div className="space-y-3 flex-1 overflow-y-auto">
               {isLoading ? (
-                <div className="h-full flex items-center justify-center py-10"><Loader2 className="animate-spin text-purple-500" /></div>
+                <div className="h-full flex items-center justify-center"><Loader2 className="animate-spin text-purple-500" /></div>
               ) : driveFiles.length > 0 ? (
                 driveFiles.map((file) => (
                   <a 
@@ -222,14 +233,14 @@ export function IntegrationsHub() {
                     rel="noreferrer" 
                     className="block p-4 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-100 dark:border-slate-800 hover:border-purple-500 transition-all"
                   >
-                    <p className="text-sm font-bold text-slate-700 dark:text-slate-200 truncate">{file.name}</p>
-                    <span className="text-[10px] font-black text-purple-500 uppercase tracking-tighter">
-                      Open Document
+                    <p className="text-sm font-bold text-slate-700 dark:text-slate-200 truncate uppercase tracking-tight">{file.name}</p>
+                    <span className="text-[9px] font-black text-purple-500 uppercase tracking-widest">
+                      Extract Data
                     </span>
                   </a>
                 ))
               ) : (
-                <div className="h-full flex flex-col items-center justify-center text-slate-400 opacity-30">
+                <div className="h-full flex flex-col items-center justify-center text-slate-400 opacity-30 text-center">
                    <FileText size={32} className="mb-2" />
                    <p className="text-[10px] font-black uppercase tracking-widest">Neural Extraction Empty</p>
                 </div>

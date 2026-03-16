@@ -4,7 +4,7 @@
  */
 
 import React, { useState } from 'react';
-import { supabase } from '../../lib/supabase'; // Corrected path for /src/components/Auth/
+import { supabase } from '../../lib/supabase';
 import { GraduationCap, Mail, Lock, User, ArrowRight, Loader2, Database } from 'lucide-react';
 import { useToast } from '../Toast'; 
 import { cn } from '../../lib/utils'; 
@@ -19,19 +19,17 @@ export function AuthView() {
 
   const handleGoogleLogin = async () => {
     try {
-      // Clean redirect for production stability
-      const redirectURL = window.location.origin.includes('localhost') 
-        ? window.location.origin 
-        : 'https://snhu.aibry.shop';
+      // 1. Production-Grade Redirect Logic
+      const redirectURL = window.location.origin;
 
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          // SCOPES: Optimized for Google Calendar, Tasks, and Drive Metadata
+          // 2. INDUSTRIAL SCOPES: Must match exactly what the Edge Functions expect
           scopes: 'openid email profile https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/tasks.readonly https://www.googleapis.com/auth/drive.metadata.readonly',
           queryParams: {
             access_type: 'offline',
-            prompt: 'consent', // FORCES checkboxes for Calendar/Tasks to appear
+            prompt: 'consent', // FORCES checkboxes to appear every time to prevent token "leaks"
           },
           redirectTo: redirectURL,
         },
@@ -64,30 +62,35 @@ export function AuthView() {
         showToast('Identity Created', 'Verify your email to initialize sync.', 'success');
       }
     } catch (error: any) {
-      showToast('Authentication Failure', error.message || 'Access Denied', 'error');
+      showToast('Access Denied', error.message || 'Authentication Failure', 'error');
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center p-6 transition-colors duration-300">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center p-6 transition-colors duration-300 font-sans">
       <div className="max-w-md w-full bg-white dark:bg-slate-900 rounded-[3rem] shadow-2xl border-2 border-slate-100 dark:border-slate-800 overflow-hidden">
         <div className="p-10 md:p-12">
+          
+          {/* Header Section */}
           <div className="flex flex-col items-center mb-10">
             <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center text-white mb-6 shadow-xl shadow-blue-600/20">
               <GraduationCap size={32} />
             </div>
             <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tighter italic uppercase">SNHU Compass</h1>
-            <p className="text-[10px] text-slate-400 dark:text-slate-500 font-black uppercase tracking-[0.2em] mt-2">Initialize Academic Sync</p>
+            <p className="text-[10px] text-slate-400 dark:text-slate-500 font-black uppercase tracking-[0.2em] mt-2 text-center">
+              Initialize Academic Sync
+            </p>
           </div>
 
+          {/* OAuth Section */}
           <div className="space-y-4 mb-8">
             <button
               onClick={handleGoogleLogin}
-              className="w-full py-4 bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl flex items-center justify-center gap-3 text-sm font-black uppercase tracking-widest text-slate-600 dark:text-slate-200 hover:border-blue-500 transition-all shadow-sm"
+              className="w-full py-4 bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl flex items-center justify-center gap-3 text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-200 hover:border-blue-500 transition-all shadow-sm active:scale-95"
             >
-              <Database size={18} className="text-blue-500" />
+              <Database size={16} className="text-blue-500" />
               Continue with Google
             </button>
             
@@ -98,10 +101,11 @@ export function AuthView() {
             </div>
           </div>
 
+          {/* Email/Password Form */}
           <form onSubmit={handleSubmit} className="space-y-5">
             {!isLogin && (
               <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Full Name</label>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Identity Label</label>
                 <div className="relative">
                   <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                   <input
@@ -117,7 +121,7 @@ export function AuthView() {
             )}
 
             <div className="space-y-1">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Email Address</label>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Logic Channel (Email)</label>
               <div className="relative">
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                 <input
@@ -125,14 +129,14 @@ export function AuthView() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-12 pr-4 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-slate-50 dark:border-slate-800 rounded-2xl focus:border-blue-500 outline-none transition-all font-bold dark:text-white"
+                  className="w-full pl-12 pr-4 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-slate-50 dark:border-slate-800 rounded-2xl focus:border-blue-500 outline-none transition-all font-bold dark:text-white uppercase text-xs"
                   placeholder="NAME@SNHU.EDU"
                 />
               </div>
             </div>
 
             <div className="space-y-1">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Password</label>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Access Key (Password)</label>
               <div className="relative">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                 <input
@@ -155,19 +159,20 @@ export function AuthView() {
                 <Loader2 className="animate-spin" size={20} />
               ) : (
                 <>
-                  {isLogin ? 'Sync System' : 'Create Identity'}
+                  {isLogin ? 'Initialize Sync' : 'Create Identity'}
                   <ArrowRight size={20} />
                 </>
               )}
             </button>
           </form>
 
+          {/* Toggle Button */}
           <div className="mt-10 text-center">
             <button
               onClick={() => setIsLogin(!isLogin)}
-              className="text-[10px] font-black text-slate-400 hover:text-blue-600 dark:hover:text-white transition-all uppercase tracking-widest"
+              className="text-[10px] font-black text-slate-400 hover:text-blue-600 dark:hover:text-white transition-all uppercase tracking-widest underline decoration-2 underline-offset-4 decoration-slate-200 dark:decoration-slate-800"
             >
-              {isLogin ? "No identity detected? Register" : "Identity confirmed? Log In"}
+              {isLogin ? "New identity? Register" : "Existing identity? Log In"}
             </button>
           </div>
         </div>
