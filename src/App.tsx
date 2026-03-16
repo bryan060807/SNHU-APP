@@ -45,7 +45,7 @@ export default function App() {
     }
   }, [profile?.theme]);
 
-  // Personalized Birthday Celebration: June 13th Logic
+  // Personalized Birthday Celebration Logic
   useEffect(() => {
     if (profile?.birthday) {
       const parts = profile.birthday.split('-');
@@ -54,13 +54,12 @@ export default function App() {
         const birthDay = parseInt(parts[2], 10);
         const today = new Date();
         
-        // Celebration trigger for Bryan's birthday (or any user)
         if ((today.getMonth() + 1) === birthMonth && today.getDate() === birthDay) {
           confetti({
             particleCount: 150,
             spread: 70,
             origin: { y: 0.6 },
-            colors: ['#2563eb', '#1d4ed8', '#ffffff'] // AIBRY Industrial Blue palette
+            colors: ['#2563eb', '#1d4ed8', '#ffffff'] 
           });
           showToast(`Happy Birthday!`, "Initialization complete. Time to dominate the term.", 'success');
         }
@@ -68,7 +67,6 @@ export default function App() {
     }
   }, [profile, showToast]);
 
-  // Fetch data from Supabase with Safe-Fetch fallbacks
   const fetchData = useCallback(async () => {
     if (!user) return;
     setDataLoading(true);
@@ -106,7 +104,6 @@ export default function App() {
   useEffect(() => {
     fetchData();
 
-    // Real-time Postgres subscription for the Neural Link
     const channel = supabase.channel('schema-db-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'assignments' }, fetchData)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'courses' }, fetchData)
@@ -118,6 +115,33 @@ export default function App() {
   }, [fetchData]);
 
   // Mutation Handlers
+  const addCourse = async (course: Omit<Course, 'id'>) => {
+    const { data, error } = await supabase
+      .from('courses')
+      .insert([{
+        code: course.code,
+        name: course.name,
+        color: course.color,
+        term_start_date: course.termStartDate || null
+      }])
+      .select()
+      .single();
+
+    if (error) {
+      showToast('Error', 'Course creation failed.', 'error');
+      throw error;
+    }
+    
+    fetchData();
+    return data;
+  };
+
+  const deleteCourse = async (id: string) => {
+    const { error } = await supabase.from('courses').delete().eq('id', id);
+    if (error) showToast('Error', 'Deletion failed.', 'error');
+    else fetchData();
+  };
+
   const addAssignment = async (assignment: Omit<Assignment, 'id'>) => {
     const { error } = await supabase
       .from('assignments')
@@ -132,6 +156,18 @@ export default function App() {
 
     if (error) showToast('Error', 'Insertion failed.', 'error');
     else fetchData();
+  };
+
+  const bulkAddAssignments = async (assignmentsList: any[]) => {
+    const { error } = await supabase
+      .from('assignments')
+      .insert(assignmentsList);
+
+    if (error) {
+      showToast('Error', 'Bulk insertion failed.', 'error');
+      throw error;
+    }
+    fetchData();
   };
 
   const updateAssignmentStatus = async (id: string, status: Assignment['status']) => {
@@ -177,7 +213,6 @@ export default function App() {
     );
   }
 
-  // Redirect to Authentication if no active user session
   if (!user) return <AuthView />;
 
   return (
@@ -202,9 +237,9 @@ export default function App() {
           {currentView === 'courses' && (
             <CourseList 
               courses={courses} 
-              addCourse={async (c) => { await supabase.from('courses').insert([c]); fetchData(); }} 
-              deleteCourse={async (id) => { await supabase.from('courses').delete().eq('id', id); fetchData(); }} 
-              bulkAddAssignments={async (a) => { await supabase.from('assignments').insert(a); fetchData(); }}
+              addCourse={addCourse} 
+              deleteCourse={deleteCourse} 
+              bulkAddAssignments={bulkAddAssignments}
             />
           )}
           {currentView === 'timer' && <StudyTimer courses={courses} />}

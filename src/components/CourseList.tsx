@@ -4,10 +4,8 @@
  */
 
 import React, { useState } from 'react';
-import { supabase } from '../lib/supabase';
-import { Course, Assignment, SyllabusData, View } from '../types';
-import { Plus, Trash2, BookOpen, Clock, FileText, Loader2 } from 'lucide-react';
-import { format } from 'date-fns';
+import { Course, SyllabusData } from '../types';
+import { Plus, Trash2, BookOpen, FileText, Loader2 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { SyllabusImporter } from './SyllabusImporter';
@@ -15,7 +13,7 @@ import { useToast } from './Toast';
 
 interface CourseListProps {
   courses: Course[];
-  addCourse: (c: Omit<Course, 'id'>) => Promise<void>;
+  addCourse: (c: Omit<Course, 'id'>) => Promise<any>; // Updated to return the created course
   deleteCourse: (id: string) => void;
   bulkAddAssignments: (assignments: any[]) => Promise<void>;
 }
@@ -43,23 +41,34 @@ export function CourseList({ courses, addCourse, deleteCourse, bulkAddAssignment
   const [newColor, setNewColor] = useState(COLORS[0].value);
   const [newTermStart, setNewTermStart] = useState('');
 
+  const resetForm = () => {
+    setNewCode('');
+    setNewName('');
+    setNewTermStart('');
+    setImportData(null);
+    setIsAdding(false);
+    setIsLoading(false);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCode || !newName) return;
     
     setIsLoading(true);
-    await addCourse({
-      code: newCode,
-      name: newName,
-      color: newColor,
-      termStartDate: newTermStart || undefined,
-    });
-    
-    setNewCode('');
-    setNewName('');
-    setNewTermStart('');
-    setIsAdding(false);
-    setIsLoading(false);
+    try {
+      await addCourse({
+        code: newCode,
+        name: newName,
+        color: newColor,
+        termStartDate: newTermStart || undefined,
+      });
+      showToast('Success', `${newCode} added to mainframe.`, 'success');
+      resetForm();
+    } catch (error: any) {
+      showToast('Error', 'Failed to save course.', 'error');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleImport = (data: SyllabusData) => {
@@ -76,21 +85,21 @@ export function CourseList({ courses, addCourse, deleteCourse, bulkAddAssignment
     setIsLoading(true);
     
     try {
-      // 1. Insert course and get the UUID from Supabase
-      const { data: courseData, error: courseError } = await supabase
-        .from('courses')
-        .insert([{
-          code: newCode,
-          name: newName,
-          color: newColor,
-          term_start_date: newTermStart || null,
-        }])
-        .select()
-        .single();
+      /**
+       * SYSTEM FIX: 
+       * Instead of calling supabase.from() here, we use the addCourse prop.
+       * This avoids the "API Key" browser error by using the parent's context.
+       */
+      const courseData = await addCourse({
+        code: newCode,
+        name: newName,
+        color: newColor,
+        termStartDate: newTermStart || undefined,
+      });
 
-      if (courseError) throw courseError;
+      if (!courseData?.id) throw new Error("Course initialization failed.");
 
-      // 2. Map assignments to the new Course UUID
+      // 2. Map assignments to the returned Course ID
       const assignmentsToImport = importData.assignments.map(a => ({
         course_id: courseData.id,
         title: a.title,
@@ -100,18 +109,16 @@ export function CourseList({ courses, addCourse, deleteCourse, bulkAddAssignment
         estimated_hours: a.estimatedHours
       }));
 
-      // 3. Bulk insert assignments
+      // 3. Bulk insert through the existing prop
       await bulkAddAssignments(assignmentsToImport);
       
-      showToast('Success', `Imported ${newCode} with ${assignmentsToImport.length} tasks.`, 'success');
-      setIsAdding(false);
+      showToast('Sync Complete', `Imported ${newCode} with ${assignmentsToImport.length} tasks.`, 'success');
+      resetForm();
     } catch (error: any) {
-      showToast('Error', error.message || 'Failed to import syllabus.', 'error');
+      console.error("Import Crash:", error);
+      showToast('Mainframe Error', error.message || 'Failed to import syllabus.', 'error');
     } finally {
       setIsLoading(false);
-      setImportData(null);
-      setNewCode('');
-      setNewName('');
     }
   };
 
@@ -119,21 +126,21 @@ export function CourseList({ courses, addCourse, deleteCourse, bulkAddAssignment
     <div className="space-y-6">
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">Your Courses</h2>
-          <p className="text-slate-500 dark:text-slate-400 mt-1 font-medium">Manage your active SNHU terms.</p>
+          <h2 className="text-4xl font-black text-slate-900 dark:text-white tracking-tighter italic uppercase italic">Your Courses</h2>
+          <p className="text-slate-500 font-bold uppercase tracking-widest text-[10px] mt-1">Manage active SNHU terms</p>
         </div>
         <div className="flex items-center gap-3">
           <button 
             onClick={() => setIsImporting(true)}
-            className="bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 px-6 py-3 rounded-2xl font-bold flex items-center gap-2 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all shadow-sm"
+            className="bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 px-6 py-3 rounded-2xl font-black uppercase text-xs flex items-center gap-2 border-2 border-slate-100 dark:border-slate-800 hover:border-blue-500 transition-all shadow-xl"
           >
-            <FileText size={20} className="text-blue-600" /> Import Syllabus
+            <FileText size={18} className="text-blue-600" /> Import Syllabus
           </button>
           <button 
             onClick={() => setIsAdding(true)}
-            className="bg-[#003057] text-white px-6 py-3 rounded-2xl font-bold flex items-center gap-2 hover:bg-blue-900 transition-all shadow-lg shadow-blue-900/10"
+            className="bg-blue-600 text-white px-6 py-3 rounded-2xl font-black uppercase text-xs flex items-center gap-2 hover:bg-blue-700 transition-all shadow-xl shadow-blue-600/20"
           >
-            <Plus size={20} /> Add Course
+            <Plus size={18} /> Add Course
           </button>
         </div>
       </header>
@@ -150,42 +157,42 @@ export function CourseList({ courses, addCourse, deleteCourse, bulkAddAssignment
       <AnimatePresence>
         {isAdding && (
           <motion.div 
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
           >
             <form 
               onSubmit={importData ? (e) => { e.preventDefault(); handleConfirmImport(); } : handleSubmit} 
-              className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border-2 border-blue-100 dark:border-slate-800 shadow-2xl shadow-blue-900/5 space-y-6 mb-8"
+              className="bg-white dark:bg-slate-900 p-8 rounded-[3rem] border-2 border-blue-500 dark:border-slate-800 shadow-2xl space-y-6 mb-8"
             >
               {importData && (
                 <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-2xl border border-blue-200 dark:border-blue-800/50">
-                  <h3 className="text-sm font-black text-blue-900 dark:text-blue-300 uppercase tracking-widest flex items-center gap-2">
-                    <FileText size={16} /> Syllabus Detected
+                  <h3 className="text-[10px] font-black text-blue-900 dark:text-blue-300 uppercase tracking-widest flex items-center gap-2">
+                    <Zap size={16} /> Syllabus Analysis Complete
                   </h3>
-                  <p className="text-xs text-blue-700 dark:text-blue-400 mt-1 font-medium">
-                    Review the details and click "Confirm" to bulk-add {importData.assignments.length} assignments.
+                  <p className="text-xs text-blue-700 dark:text-blue-400 mt-1 font-medium italic">
+                    Detected {importData.assignments.length} potential milestones. Review identity labels below.
                   </p>
                 </div>
               )}
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Course Code</label>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Identity Label (Code)</label>
                   <input 
                     autoFocus
                     value={newCode}
                     onChange={(e) => setNewCode(e.target.value)}
-                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl focus:ring-2 focus:ring-blue-500/20 transition-all dark:text-white"
+                    className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-800 rounded-2xl dark:text-white font-bold outline-none focus:border-blue-500 transition-all"
                     placeholder="e.g. HIS-217"
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Course Name</label>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Module Title (Name)</label>
                   <input 
                     value={newName}
                     onChange={(e) => setNewName(e.target.value)}
-                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl focus:ring-2 focus:ring-blue-500/20 transition-all dark:text-white"
+                    className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-800 rounded-2xl dark:text-white font-bold outline-none focus:border-blue-500 transition-all"
                     placeholder="e.g. US History II"
                   />
                 </div>
@@ -198,22 +205,22 @@ export function CourseList({ courses, addCourse, deleteCourse, bulkAddAssignment
                     type="button"
                     onClick={() => setNewColor(color.value)}
                     className={cn(
-                      "w-10 h-10 rounded-full transition-all ring-offset-4 dark:ring-offset-slate-900",
+                      "w-10 h-10 rounded-xl transition-all shadow-lg",
                       color.value,
-                      newColor === color.value ? "ring-4 ring-blue-500 scale-110" : "hover:scale-105 opacity-80"
+                      newColor === color.value ? "ring-4 ring-blue-500 scale-110" : "hover:scale-105 opacity-60"
                     )}
                   />
                 ))}
               </div>
 
-              <div className="flex justify-end gap-3 pt-4">
-                <button type="button" onClick={() => { setIsAdding(false); setImportData(null); }} className="px-6 py-2 font-bold text-slate-500 hover:text-slate-800 transition-colors">Cancel</button>
+              <div className="flex justify-end gap-3 pt-4 border-t border-slate-50 dark:border-slate-800">
+                <button type="button" onClick={resetForm} className="px-6 py-2 font-black uppercase text-xs text-slate-400 hover:text-slate-800 transition-colors tracking-widest">Abort</button>
                 <button 
                   type="submit" 
                   disabled={isLoading}
-                  className="bg-blue-600 text-white px-8 py-3 rounded-2xl font-bold flex items-center gap-2 hover:bg-blue-700 transition-all disabled:opacity-50"
+                  className="bg-blue-600 text-white px-10 py-4 rounded-2xl font-black uppercase text-xs tracking-widest flex items-center gap-3 hover:bg-blue-700 transition-all disabled:opacity-50 shadow-xl shadow-blue-600/20"
                 >
-                  {isLoading ? <Loader2 className="animate-spin" size={20} /> : (importData ? 'Confirm & Add' : 'Save Course')}
+                  {isLoading ? <Loader2 className="animate-spin" size={18} /> : (importData ? 'Confirm Extraction' : 'Initialize Course')}
                 </button>
               </div>
             </form>
@@ -221,21 +228,21 @@ export function CourseList({ courses, addCourse, deleteCourse, bulkAddAssignment
         )}
       </AnimatePresence>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
         {courses.map((course) => (
           <motion.div 
             key={course.id}
             layout
-            className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 p-8 relative group hover:shadow-2xl hover:shadow-blue-900/5 transition-all"
+            className="bg-white dark:bg-slate-900 rounded-[3rem] border-2 border-slate-100 dark:border-slate-800 p-8 relative group hover:shadow-2xl transition-all"
           >
-            <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center text-white mb-6 shadow-xl", course.color)}>
-              <BookOpen size={28} />
+            <div className={cn("w-16 h-16 rounded-2xl flex items-center justify-center text-white mb-6 shadow-xl", course.color)}>
+              <BookOpen size={32} />
             </div>
-            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{course.code}</h3>
-            <h4 className="text-xl font-black text-slate-900 dark:text-white leading-tight mb-6">{course.name}</h4>
+            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1 italic">{course.code}</h3>
+            <h4 className="text-2xl font-black text-slate-900 dark:text-white leading-tight mb-8 tracking-tighter">{course.name}</h4>
             
             <div className="flex items-center justify-between pt-6 border-t border-slate-50 dark:border-slate-800">
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">SNHU 2026 Term</span>
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">SNHU Term 2026</span>
               <button 
                 onClick={() => deleteCourse(course.id)}
                 className="p-3 text-slate-300 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-xl transition-all opacity-0 group-hover:opacity-100"
