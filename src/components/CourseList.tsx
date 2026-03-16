@@ -5,7 +5,15 @@
 
 import React, { useState } from 'react';
 import { Course, SyllabusData } from '../types';
-import { Plus, Trash2, BookOpen, FileText, Loader2 } from 'lucide-react';
+import { 
+  Plus, 
+  Trash2, 
+  BookOpen, 
+  FileText, 
+  Loader2, 
+  Sparkles, // Swapped Zap for Sparkles
+  CheckCircle2 
+} from 'lucide-react';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { SyllabusImporter } from './SyllabusImporter';
@@ -85,11 +93,6 @@ export function CourseList({ courses, addCourse, deleteCourse, bulkAddAssignment
     setIsLoading(true);
     
     try {
-      /**
-       * SYSTEM FIX: 
-       * Instead of calling supabase.from() here, we use the addCourse prop.
-       * This avoids the "API Key" browser error by using the parent's context.
-       */
       const courseData = await addCourse({
         code: newCode,
         name: newName,
@@ -99,7 +102,6 @@ export function CourseList({ courses, addCourse, deleteCourse, bulkAddAssignment
 
       if (!courseData?.id) throw new Error("Course initialization failed.");
 
-      // 2. Map assignments to the returned Course ID
       const assignmentsToImport = importData.assignments.map(a => ({
         course_id: courseData.id,
         title: a.title,
@@ -109,7 +111,6 @@ export function CourseList({ courses, addCourse, deleteCourse, bulkAddAssignment
         estimated_hours: a.estimatedHours
       }));
 
-      // 3. Bulk insert through the existing prop
       await bulkAddAssignments(assignmentsToImport);
       
       showToast('Sync Complete', `Imported ${newCode} with ${assignmentsToImport.length} tasks.`, 'success');
@@ -126,7 +127,7 @@ export function CourseList({ courses, addCourse, deleteCourse, bulkAddAssignment
     <div className="space-y-6">
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-4xl font-black text-slate-900 dark:text-white tracking-tighter italic uppercase italic">Your Courses</h2>
+          <h2 className="text-4xl font-black text-slate-900 dark:text-white tracking-tighter italic uppercase">Your Courses</h2>
           <p className="text-slate-500 font-bold uppercase tracking-widest text-[10px] mt-1">Manage active SNHU terms</p>
         </div>
         <div className="flex items-center gap-3">
@@ -168,7 +169,7 @@ export function CourseList({ courses, addCourse, deleteCourse, bulkAddAssignment
               {importData && (
                 <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-2xl border border-blue-200 dark:border-blue-800/50">
                   <h3 className="text-[10px] font-black text-blue-900 dark:text-blue-300 uppercase tracking-widest flex items-center gap-2">
-                    <Zap size={16} /> Syllabus Analysis Complete
+                    <Sparkles size={16} /> Syllabus Analysis Complete
                   </h3>
                   <p className="text-xs text-blue-700 dark:text-blue-400 mt-1 font-medium italic">
                     Detected {importData.assignments.length} potential milestones. Review identity labels below.

@@ -5,11 +5,27 @@
 
 import React, { useState, useEffect } from 'react';
 import { Course, Assignment } from '../types';
-import { Plus, Trash2, CheckCircle2, Circle, Clock, Filter, Search, Edit2, Brain, Zap, PlayCircle, AlertCircle, Sparkles, Loader2, X } from 'lucide-react';
+import { 
+  Plus, 
+  Trash2, 
+  CheckCircle2, 
+  Circle, 
+  Clock, 
+  Filter, 
+  Search, 
+  Edit2, 
+  Brain, 
+  Activity, // Swapped Zap for Activity
+  PlayCircle, 
+  AlertCircle, 
+  Sparkles, 
+  Loader2, 
+  X 
+} from 'lucide-react';
 import { format, addDays, startOfWeek, setHours, setMinutes, isBefore } from 'date-fns';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
-import { improveAssignmentTitle } from '../services/geminiService'; // New import
+import { improveAssignmentTitle } from '../services/geminiService';
 
 interface AssignmentListProps {
   courses: Course[];
@@ -185,7 +201,7 @@ export function AssignmentList({ courses, assignments, addAssignment, updateAssi
             {!editingAssignment && (
               <div className="p-6 bg-slate-50 dark:bg-slate-800/50 rounded-[2rem] border-2 border-slate-100 dark:border-slate-800 space-y-4">
                  <div className="flex items-center gap-3">
-                   <Zap size={20} className="text-blue-600" fill="currentColor" />
+                   <Activity size={20} className="text-blue-600" />
                    <span className="text-xs font-black text-slate-400 uppercase tracking-widest">SNHU Quick-Pick Modules</span>
                  </div>
                  <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
@@ -281,8 +297,6 @@ export function AssignmentList({ courses, assignments, addAssignment, updateAssi
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* List content continues as before... */}
     </div>
   );
 }
