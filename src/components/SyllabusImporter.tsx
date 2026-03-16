@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useRef, useEffect } from 'react';
+// Added Zap back to the import list to fix the ReferenceError
 import { Upload, Loader2, CheckCircle2, AlertCircle, X, Zap } from 'lucide-react';
 import { parseSyllabus } from '../services/geminiService';
 import { SyllabusData } from '../types';
@@ -24,25 +25,16 @@ export function SyllabusImporter({ onImport, onClose }: SyllabusImporterProps) {
   const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  /**
-   * WORKER INITIALIZATION
-   * Uses unpkg for stable module loading. 
-   * This fixes the "failed to load dynamically imported module" error.
-   */
   useEffect(() => {
+    // Stable worker link for PDF support
     pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
   }, []);
 
-  /**
-   * CORE EXTRACTION: PDF TO TEXT
-   * Iterates through PDF layers to extract raw academic data.
-   */
   const extractTextFromPDF = async (file: File): Promise<string> => {
     try {
       const arrayBuffer = await file.arrayBuffer();
       const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
       let fullText = '';
-      
       for (let i = 1; i <= pdf.numPages; i++) {
         const page = await pdf.getPage(i);
         const textContent = await page.getTextContent();
@@ -52,12 +44,11 @@ export function SyllabusImporter({ onImport, onClose }: SyllabusImporterProps) {
       return fullText;
     } catch (err: any) {
       console.error("PDF Read Error:", err);
-      throw new Error("Failed to read PDF rebar. Try printing to PDF again or pasting text.");
+      throw new Error("Failed to read PDF rebar.");
     }
   };
 
   const handleFile = async (file: File) => {
-    // Explicitly supporting HTML for SNHU Brightspace pages
     const supportedTypes = ['application/pdf', 'text/plain', 'text/html'];
     const isHtml = file.type === 'text/html' || file.name.endsWith('.html') || file.name.endsWith('.htm');
 
@@ -74,16 +65,11 @@ export function SyllabusImporter({ onImport, onClose }: SyllabusImporterProps) {
       if (file.type === 'application/pdf') {
         text = await extractTextFromPDF(file);
       } else {
-        // Reads raw HTML or Text
         text = await file.text();
       }
 
       if (!text.trim()) throw new Error('No text found in file.');
 
-      /**
-       * AI SYNC: Invokes Gemini to structure the data.
-       * HTML files are sent raw; Gemini handles the tag stripping.
-       */
       const data = await parseSyllabus(text, startDate || undefined);
       onImport(data);
     } catch (err: any) {
@@ -97,18 +83,14 @@ export function SyllabusImporter({ onImport, onClose }: SyllabusImporterProps) {
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (e.type === "dragenter" || e.type === "dragover") {
-      setDragActive(true);
-    } else if (e.type === "dragleave") {
-      setDragActive(false);
-    }
+    setDragActive(e.type === "dragenter" || e.type === "dragover");
   };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+    if (e.dataTransfer.files?.[0]) {
       handleFile(e.dataTransfer.files[0]);
     }
   };
@@ -121,7 +103,7 @@ export function SyllabusImporter({ onImport, onClose }: SyllabusImporterProps) {
       const data = await parseSyllabus(pastedText, startDate || undefined);
       onImport(data);
     } catch (err: any) {
-      setError('Could not identify course structure. Ensure the text includes assignments.');
+      setError('Extraction failed. Ensure the text includes assignments.');
     } finally {
       setIsProcessing(false);
     }
